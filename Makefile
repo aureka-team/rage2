@@ -25,3 +25,16 @@ redis-flush:
 	docker compose exec rage-redis redis-cli FLUSHALL
 
 redis-restart: redis-stop redis-start
+
+
+qdrant-start:
+	docker compose up -d rage-qdrant
+
+qdrant-stop:
+	docker compose stop rage-qdrant
+
+qdrant-flush:
+	sudo rm -r ./resources/db/qdrant
+	$(info *** WARNING you are deleting all data from qdrant ***)
+
+qdrant-restart: qdrant-stop qdrant-start

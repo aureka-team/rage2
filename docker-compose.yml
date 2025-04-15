@@ -39,3 +39,11 @@ services:
                 limits:
                     memory: 192M
         restart: unless-stopped
+
+    rage-qdrant:
+        image: qdrant/qdrant:${QDRANT_VERSION}
+        container_name: rage-qdrant
+        network_mode: host
+        volumes:
+            - ./resources/db/qdrant:/qdrant/storage
+        restart: unless-stopped
