@@ -1,0 +1,41 @@
+services:
+    rage-core:
+        image: rage-core
+        container_name: rage-core
+        network_mode: host
+        build:
+            context: .
+            dockerfile: ./docker/core/Dockerfile
+            ssh:
+                - default
+            args:
+                - PYTHON_VERSION
+                - UV_VERSION
+        volumes:
+            - $PWD/resources:/resources
+            - $PWD/notebooks:/notebooks
+        env_file:
+            - .env
+            - .secrets/.env
+
+    rage-redis:
+        image: redis:${REDIS_VERSION}
+        container_name: rage-redis
+        network_mode: host
+        volumes:
+            - $PWD/resources/cache/redis:/data
+        command:
+            [
+                "redis-server",
+                "--appendonly",
+                "no",
+                "--maxmemory",
+                "128mb",
+                "--maxmemory-policy",
+                "allkeys-lru",
+            ]
+        deploy:
+            resources:
+                limits:
+                    memory: 192M
+        restart: unless-stopped

@@ -1,0 +1,42 @@
+from joblib import hash
+from abc import ABC, abstractmethod
+from pydantic import BaseModel, StrictStr
+
+from common.cache import RedisCache
+
+
+class Document(BaseModel):
+    text: StrictStr
+    metadata: dict = {}
+
+
+class TextLoader(ABC):
+    def __init__(self, cache: RedisCache | None = None):
+        self.cache = cache
+
+    @abstractmethod
+    def _load(self, source_path: str) -> list[Document]:
+        pass
+
+    def _get_cache_key(self, source_path: str) -> str:
+        with open(source_path, "rb") as f:
+            return hash(f.read())
+
+    def load(
+        self,
+        source_path: str,
+    ) -> list[Document]:
+        cache_key = self._get_cache_key(source_path=source_path)
+        if self.cache is not None:
+            cached_output = self.cache.load(cache_key=cache_key)
+            if cached_output is not None:
+                return cached_output
+
+        documents = self._load(source_path=source_path)
+        if self.cache:
+            self.cache.save(
+                cache_key=cache_key,
+                obj=documents,
+            )
+
+        return documents
