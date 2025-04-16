@@ -21,6 +21,7 @@ from rage.meta.interfaces import TextChunk
 QDRANT_HOST = os.getenv("QDRANT_HOST")
 QDRANT_PORT = os.getenv("QDRANT_PORT")
 QDRANT_GRPC_PORT = os.getenv("QDRANT_GRPC_PORT")
+FAST_EMBED_SPARSE_CACHE = os.getenv("FAST_EMBED_SPARSE_CACHE")
 
 
 logger = get_logger(__name__)
@@ -38,18 +39,20 @@ class Retriever:
         embeddings_model_name: str = "text-embedding-3-large",
         embeddings_dimensions: int = 256,
         embeddings_chunk_size: int = 1024,
+        embeddings_show_progress_bar: bool = False,
         sparse_embeddings_model_name: str = "Qdrant/bm25",
     ):
         self.embeddings_dimensions = embeddings_dimensions
         self.embeddings = OpenAIEmbeddings(
             model=embeddings_model_name,
             dimensions=self.embeddings_dimensions,
-            show_progress_bar=True,
+            show_progress_bar=embeddings_show_progress_bar,
             chunk_size=embeddings_chunk_size,
         )
 
         self.sparse_embeddings = FastEmbedSparse(
-            model_name=sparse_embeddings_model_name
+            model_name=sparse_embeddings_model_name,
+            cache_dir=FAST_EMBED_SPARSE_CACHE,
         )
 
         self.qadrant_client = QdrantClient(
