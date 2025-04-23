@@ -10,8 +10,11 @@ from pydantic import BaseModel, StrictStr, NonNegativeFloat
 from qdrant_client import QdrantClient, models
 from qdrant_client.http.models import Distance, SparseVectorParams, VectorParams
 
+from langchain.storage import LocalFileStore
 from langchain_core.documents import Document
 from langchain_openai import OpenAIEmbeddings
+from langchain_core.embeddings import Embeddings
+from langchain.embeddings import CacheBackedEmbeddings
 from langchain.vectorstores.base import VectorStoreRetriever
 from langchain_qdrant import QdrantVectorStore, FastEmbedSparse, RetrievalMode
 
@@ -21,6 +24,9 @@ from rage.meta.interfaces import TextChunk
 QDRANT_HOST = os.getenv("QDRANT_HOST")
 QDRANT_PORT = os.getenv("QDRANT_PORT")
 QDRANT_GRPC_PORT = os.getenv("QDRANT_GRPC_PORT")
+
+DENSE_EMBED_DOC_CACHE_PATH = os.getenv("DENSE_EMBED_DOC_CACHE_PATH")
+DENSE_EMBED_QUERY_CACHE_PATH = os.getenv("DENSE_EMBED_QUERY_CACHE_PATH")
 FAST_EMBED_SPARSE_CACHE = os.getenv("FAST_EMBED_SPARSE_CACHE")
 
 
@@ -36,22 +42,26 @@ class RetrieverItem(BaseModel):
 class Retriever:
     def __init__(
         self,
-        embeddings_model_name: str = "text-embedding-3-large",
-        embeddings_dimensions: int = 256,
-        embeddings_chunk_size: int = 1024,
-        embeddings_show_progress_bar: bool = False,
-        sparse_embeddings_model_name: str = "Qdrant/bm25",
+        dense_embed_model_name: str = "text-embedding-3-large",
+        dense_embed_dimensions: int = 256,
+        dense_embed_chunk_size: int = 1024,
+        dense_embed_show_progress_bar: bool = False,
+        dense_embed_doc_cache_path: str | None = DENSE_EMBED_DOC_CACHE_PATH,
+        dense_embed_query_cache_path: str | None = DENSE_EMBED_QUERY_CACHE_PATH,
+        sparse_embed_model_name: str = "Qdrant/bm25",
     ):
-        self.embeddings_dimensions = embeddings_dimensions
-        self.embeddings = OpenAIEmbeddings(
-            model=embeddings_model_name,
-            dimensions=self.embeddings_dimensions,
-            show_progress_bar=embeddings_show_progress_bar,
-            chunk_size=embeddings_chunk_size,
+        self.dense_embed_dimensions = dense_embed_dimensions
+        self.dense_embeddings = self._get_dense_embeddings(
+            model_name=dense_embed_model_name,
+            dimensions=dense_embed_dimensions,
+            chunk_size=dense_embed_chunk_size,
+            show_progress_bar=dense_embed_show_progress_bar,
+            dense_embed_doc_cache_path=dense_embed_doc_cache_path,
+            dense_embed_query_cache_path=dense_embed_query_cache_path,
         )
 
         self.sparse_embeddings = FastEmbedSparse(
-            model_name=sparse_embeddings_model_name,
+            model_name=sparse_embed_model_name,
             cache_dir=FAST_EMBED_SPARSE_CACHE,
         )
 
@@ -66,6 +76,40 @@ class Retriever:
             "hybrid": self._get_hybrid_vector_store,
         }
 
+    def _get_dense_embeddings(
+        self,
+        model_name: str,
+        dimensions: int,
+        chunk_size: int,
+        show_progress_bar: bool,
+        dense_embed_doc_cache_path: str | None,
+        dense_embed_query_cache_path: str | None,
+    ) -> Embeddings:
+        underlying_embeddings = OpenAIEmbeddings(
+            model=model_name,
+            dimensions=dimensions,
+            show_progress_bar=show_progress_bar,
+            chunk_size=chunk_size,
+        )
+
+        if dense_embed_doc_cache_path is None:
+            return underlying_embeddings
+
+        query_embedding_cache = (
+            True
+            if dense_embed_query_cache_path is None
+            else LocalFileStore(root_path=dense_embed_query_cache_path)
+        )
+
+        return CacheBackedEmbeddings.from_bytes_store(
+            underlying_embeddings=underlying_embeddings,
+            document_embedding_cache=LocalFileStore(
+                root_path=dense_embed_doc_cache_path
+            ),
+            namespace=model_name,
+            query_embedding_cache=query_embedding_cache,
+        )
+
     @lru_cache()
     def _get_dense_vector_store(
         self,
@@ -74,7 +118,7 @@ class Retriever:
         return QdrantVectorStore(
             client=self.qadrant_client,
             collection_name=collection_name,
-            embedding=self.embeddings,
+            embedding=self.dense_embeddings,
             retrieval_mode=RetrievalMode.DENSE,
             vector_name="dense",
         )
@@ -87,7 +131,7 @@ class Retriever:
         return QdrantVectorStore(
             client=self.qadrant_client,
             collection_name=collection_name,
-            embedding=self.embeddings,
+            embedding=self.dense_embeddings,
             sparse_embedding=self.sparse_embeddings,
             retrieval_mode=RetrievalMode.HYBRID,
             vector_name="dense",
@@ -105,7 +149,7 @@ class Retriever:
             collection_name=collection_name,
             vectors_config={
                 "dense": VectorParams(
-                    size=self.embeddings_dimensions,
+                    size=self.dense_embed_dimensions,
                     distance=Distance.COSINE,
                 )
             },
