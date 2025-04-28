@@ -11,7 +11,7 @@ class SimpleTextSplitter(TextSplitter):
     def __init__(
         self,
         chunk_size: int = 128,
-        chunk_overlap: int = 8,
+        chunk_overlap: int = 16,
     ):
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
