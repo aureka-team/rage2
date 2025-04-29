@@ -1,5 +1,6 @@
-from tqdm import tqdm
+import asyncio
 
+from tqdm import tqdm
 from pypdf.errors import PdfReadError
 from pypdf import PdfReader, PageObject
 
@@ -67,9 +68,24 @@ class PDFLoaeder(TextLoader):
 
         return [document for document in page_documents if document.text]
 
-    def _load(self, source_path) -> list[Document]:
+    def _get_documents(self, source_path) -> list[Document]:
         reader = PdfReader(source_path)
         pages = reader.pages
         logger.info(f"pages => {len(pages)}")
 
         return self.get_page_documents(pages=pages)
+
+    async def _load(
+        self,
+        source_path,
+        pb: tqdm | None = None,
+    ) -> list[Document]:
+        documents = await asyncio.to_thread(
+            self._get_documents,
+            source_path=source_path,
+        )
+
+        if pb is not None:
+            pb.update(1)
+
+        return documents
