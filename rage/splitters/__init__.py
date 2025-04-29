@@ -1,1 +1,1 @@
-from .simple_text_splitter import SimpleTextSplitter  # noqa
+from .word_text_splitter import WordTextSplitter  # noqa

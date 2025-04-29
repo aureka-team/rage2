@@ -7,7 +7,7 @@ from rage.meta.interfaces import TextSplitter, Document, TextChunk
 logger = get_logger(__name__)
 
 
-class SimpleTextSplitter(TextSplitter):
+class WordTextSplitter(TextSplitter):
     def __init__(
         self,
         chunk_size: int = 128,
@@ -24,6 +24,16 @@ class SimpleTextSplitter(TextSplitter):
     def _get_text_chunks(self, document: Document) -> list[TextChunk]:
         document_text = document.text
         document_metadata = document.metadata
+
+        if document.is_table:
+            return [
+                TextChunk(
+                    text=document_text,
+                    metadata=document_metadata,
+                    is_table=True,
+                    num_tokens=self._get_num_tokens(text=document_text),
+                )
+            ]
 
         text_words = document_text.split()
         if len(text_words) <= self.chunk_size:

@@ -1,5 +1,5 @@
 model: openai:gpt-4.1-2025-04-14
-max-tokens: 1024
+max-tokens: 2048
 temperature: 0.0
 
 system-prompt: |-

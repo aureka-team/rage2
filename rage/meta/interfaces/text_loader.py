@@ -1,6 +1,6 @@
 from joblib import hash
 from abc import ABC, abstractmethod
-from pydantic import BaseModel, StrictStr
+from pydantic import BaseModel, StrictStr, StrictBool
 
 from common.cache import RedisCache
 
@@ -8,7 +8,7 @@ from common.cache import RedisCache
 class Document(BaseModel):
     text: StrictStr
     metadata: dict = {}
-    json_table: dict | None = None
+    is_table: StrictBool = False
 
 
 class TextLoader(ABC):
