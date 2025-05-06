@@ -6,8 +6,6 @@ services:
         build:
             context: .
             dockerfile: ./docker/core/Dockerfile
-            ssh:
-                - default
             args:
                 - PYTHON_VERSION
                 - UV_VERSION
