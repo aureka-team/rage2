@@ -1,9 +1,15 @@
-ARG UV_VERSION
+ARG UV_VERSION=0.7.6
 FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv_source
 
 FROM ubuntu:noble
 
-ARG PYTHON_VERSION
+ENV UV_SYSTEM_PYTHON=1
+ENV DENSE_EMBED_DOC_CACHE_PATH=/resources/cache/embeddings/documents
+ENV DENSE_EMBED_QUERY_CACHE_PATH=/resources/cache/embeddings/queries
+ENV FAST_EMBED_SPARSE_CACHE=/resources/cache/fes
+ENV HF_HUB_CACHE=/resources/cache/hf
+
+ARG PYTHON_VERSION=3.12
 RUN --mount=type=cache,target=/var/cache/apt \
     --mount=target=/var/cache/apt,type=cache,sharing=locked \
     apt-get update && apt-get install -y --no-install-recommends \

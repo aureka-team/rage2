@@ -18,7 +18,7 @@ RUN uv pip install -r requirements.txt --system
 
 RUN rm -rf /tmp/*
 
-ARG DEVCONTAINER_USER
+ARG DEVCONTAINER_USER=ubuntu
 RUN usermod -aG sudo $DEVCONTAINER_USER \
     && passwd -d $DEVCONTAINER_USER
 
