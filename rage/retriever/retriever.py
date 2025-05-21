@@ -21,9 +21,9 @@ from langchain_qdrant import QdrantVectorStore, FastEmbedSparse, RetrievalMode
 from rage.meta.interfaces import TextChunk
 
 
-QDRANT_HOST = os.getenv("QDRANT_HOST")
-QDRANT_PORT = os.getenv("QDRANT_PORT")
-QDRANT_GRPC_PORT = os.getenv("QDRANT_GRPC_PORT")
+QDRANT_HOST = os.getenv("QDRANT_HOST", "localhost")
+QDRANT_PORT = int(os.getenv("QDRANT_PORT", "6333"))
+QDRANT_GRPC_PORT = int(os.getenv("QDRANT_GRPC_PORT", "6334"))
 
 DENSE_EMBED_DOC_CACHE_PATH = os.getenv("DENSE_EMBED_DOC_CACHE_PATH")
 DENSE_EMBED_QUERY_CACHE_PATH = os.getenv("DENSE_EMBED_QUERY_CACHE_PATH")

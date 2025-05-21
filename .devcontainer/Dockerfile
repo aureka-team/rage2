@@ -14,7 +14,7 @@ RUN --mount=type=cache,target=/var/cache/apt \
     && rm -rf /var/tmp/* /var/lib/apt/lists/*
 
 COPY .devcontainer/requirements.txt .
-RUN uv pip install -r requirements.txt --system
+RUN uv pip install -r requirements.txt
 
 RUN rm -rf /tmp/*
 

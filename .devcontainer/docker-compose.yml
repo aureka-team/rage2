@@ -2,17 +2,20 @@ services:
     rage-devcontainer:
         image: rage-devcontainer
         container_name: rage-devcontainer
-        network_mode: host
         build:
             context: ..
             dockerfile: .devcontainer/Dockerfile
-            args:
-                - DEVCONTAINER_USER
         volumes:
             - ..:/workspace:cached
             - ../resources/:/resources
         env_file:
             - ../.env
-            - ../.secrets/.env
         # This keeps the devcontainer running.
         entrypoint: ["tail", "-f", "/dev/null"]
+        networks:
+            - rage
+
+networks:
+    rage:
+        name: rage
+        driver: bridge

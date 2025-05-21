@@ -1,10 +1,7 @@
-include .env
-
 .PHONY: core-build devcontainer-build api-build
 
 
 core-build:
-	[ -e .secrets/.env ] || touch .secrets/.env
 	docker compose build rage-core
 
 core-run: core-build

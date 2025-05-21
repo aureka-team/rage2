@@ -9,9 +9,7 @@ dynamic = ["version", "dependencies"]
 description = "RAG Engine"
 readme = "README.md"
 authors = [{ name = "Bas", email = "bastiansg.bas@gmail.com" }]
-license = { file = "LICENSE" }
 classifiers = [
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
 ]

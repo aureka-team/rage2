@@ -1,3 +1,4 @@
+.env
 **/__pycache__
 **/*.ipynb_checkpoints
 **/*.egg-info
@@ -5,9 +6,6 @@
 
 build/
 resources/
-
-.secrets/*
-!.secrets/.gitkeep
 
 .vscode/*
 !.vscode/launch.json

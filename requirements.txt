@@ -8,4 +8,4 @@ langchain==0.3.25
 langchain-qdrant==0.2.0
 langchain_openai==0.3.17
 
-common @ git+https://github.com/aureka-team/common.git@v1.1.7
+common @ git+https://github.com/aureka-team/common.git@v1.1.8

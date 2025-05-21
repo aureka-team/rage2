@@ -9,6 +9,9 @@ ENV DENSE_EMBED_QUERY_CACHE_PATH=/resources/cache/embeddings/queries
 ENV FAST_EMBED_SPARSE_CACHE=/resources/cache/fes
 ENV HF_HUB_CACHE=/resources/cache/hf
 
+ENV REDIS_HOST=rage-redis
+ENV QDRANT_HOST=rage-qdrant
+
 ARG PYTHON_VERSION=3.12
 RUN --mount=type=cache,target=/var/cache/apt \
     --mount=target=/var/cache/apt,type=cache,sharing=locked \
@@ -40,7 +43,7 @@ WORKDIR /tmp
 
 COPY ./requirements.txt requirements.txt
 RUN --mount=type=cache,target=/root/.cache \
-    uv pip install -r requirements.txt --system
+    uv pip install -r requirements.txt
 
 RUN rm -rf /tmp/*
 WORKDIR /root
