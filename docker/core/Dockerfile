@@ -29,6 +29,7 @@ RUN --mount=type=cache,target=/var/cache/apt \
     ca-certificates \
     libgl1 \
     libglib2.0-0 \
+    pandoc \
     && apt-get autoremove -y \
     && apt-get clean \
     && rm -rf /var/tmp/* /var/lib/apt/lists/*
