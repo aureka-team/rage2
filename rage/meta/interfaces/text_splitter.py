@@ -18,8 +18,8 @@ class TextChunk(Document):
 class TextSplitter(ABC):
     def __init__(
         self,
-        chunk_size: int = 128,
-        chunk_overlap: int = 8,
+        chunk_size: int | None = None,
+        chunk_overlap: int | None = None,
         tt_encoder_name: str = "gpt-4o",
     ):
         self.chunk_size = chunk_size
