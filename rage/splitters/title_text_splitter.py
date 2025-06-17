@@ -7,7 +7,7 @@ from rage.meta.interfaces import TextSplitter, Document, TextChunk
 logger = get_logger(__name__)
 
 
-class TitleTextSplitter(TextSplitter):
+class TitleSplitter(TextSplitter):
     def __init__(self, title_tag: str = "title"):
         super().__init__()
         self.title_tag = title_tag

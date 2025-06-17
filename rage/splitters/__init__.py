@@ -1,2 +1,3 @@
-from .word_text_splitter import WordTextSplitter  # noqa
-from .title_text_splitter import TitleTextSplitter  # noqa
+from .word_text_splitter import WordSplitter  # noqa
+from .title_text_splitter import TitleSplitter  # noqa
+from .document_splitter import DocumentSplitter  # noqa

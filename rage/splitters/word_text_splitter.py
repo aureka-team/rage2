@@ -7,7 +7,7 @@ from rage.meta.interfaces import TextSplitter, Document, TextChunk
 logger = get_logger(__name__)
 
 
-class WordTextSplitter(TextSplitter):
+class WordSplitter(TextSplitter):
     def __init__(
         self,
         chunk_size: int = 128,
