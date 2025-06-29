@@ -276,3 +276,15 @@ class Retriever:
             )
             for r in results
         ]
+
+    def scroll(
+        self,
+        collection_name: str,
+        limit: int = 10,
+        scroll_filter: models.Filter | None = None,
+    ):
+        return self.qadrant_client.scroll(
+            collection_name=collection_name,
+            limit=limit,
+            scroll_filter=scroll_filter,
+        )
