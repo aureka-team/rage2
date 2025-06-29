@@ -1,3 +1,4 @@
+from tqdm import tqdm
 from more_itertools import windowed, flatten
 
 from common.logger import get_logger
@@ -93,5 +94,5 @@ class WordSplitter(TextSplitter):
         self,
         documents: list[Document],
     ) -> list[TextChunk]:
-        text_chunks = map(self._get_text_chunks, documents)
+        text_chunks = map(self._get_text_chunks, tqdm(documents))
         return list(flatten(text_chunks))

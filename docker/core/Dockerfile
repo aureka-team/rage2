@@ -1,4 +1,4 @@
-ARG UV_VERSION=0.7.13
+ARG UV_VERSION=0.7.16
 FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv_source
 
 FROM ubuntu:noble

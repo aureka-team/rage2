@@ -1,3 +1,4 @@
+from tqdm import tqdm
 from more_itertools import split_before
 
 from common.logger import get_logger
@@ -25,7 +26,7 @@ class TitleSplitter(TextSplitter):
         documents: list[Document],
     ) -> list[TextChunk]:
         title_groups = split_before(
-            documents,
+            tqdm(documents),
             lambda x: x.metadata["type"].lower() == self.title_tag,
         )
 

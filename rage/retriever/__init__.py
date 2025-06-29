@@ -1,1 +1,1 @@
-from .retriever import Retriever  # noqa
+from .retriever import Retriever, RetrieverItem  # noqa

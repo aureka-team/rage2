@@ -1,3 +1,4 @@
+from tqdm import tqdm
 from common.logger import get_logger
 from rage.meta.interfaces import TextSplitter, Document, TextChunk
 
@@ -19,5 +20,5 @@ class DocumentSplitter(TextSplitter):
                 metadata=doc.metadata,
                 num_tokens=self._get_num_tokens(text=doc.text),
             )
-            for doc in documents
+            for doc in tqdm(documents)
         ]

@@ -204,6 +204,7 @@ class Retriever:
         collection_name: str,
         query: str,
         k: int = 10,
+        search_filter: models.Filter | None = None,
     ) -> list[RetrieverItem]:
         vector_store = self._get_dense_vector_store(
             collection_name=collection_name
@@ -212,6 +213,7 @@ class Retriever:
         results = await vector_store.asimilarity_search_with_score(
             query=query,
             k=k,
+            filter=search_filter,
         )
 
         return self._parse_results(results=results)
@@ -221,6 +223,7 @@ class Retriever:
         collection_name: str,
         query: str,
         k: int = 10,
+        search_filter: models.Filter | None = None,
     ) -> list[RetrieverItem]:
         vector_store = self._get_hybrid_vector_store(
             collection_name=collection_name
@@ -229,6 +232,7 @@ class Retriever:
         results = await vector_store.asimilarity_search_with_score(
             query=query,
             k=k,
+            filter=search_filter,
         )
 
         return self._parse_results(results=results)
