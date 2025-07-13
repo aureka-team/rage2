@@ -1,7 +1,7 @@
 import tiktoken
 
 from abc import ABC, abstractmethod
-from pydantic import NonNegativeInt, PositiveInt
+from pydantic import NonNegativeInt
 
 from common.logger import get_logger
 
@@ -12,7 +12,6 @@ logger = get_logger(__name__)
 
 
 class TextChunk(Document):
-    chunk_id: PositiveInt
     num_tokens: NonNegativeInt
 
 
@@ -31,8 +30,23 @@ class TextSplitter(ABC):
         return len(self.tt_encoder.encode(text))
 
     @abstractmethod
-    def split_documents(
+    def _split_documents(
         self,
         documents: list[Document],
     ) -> list[TextChunk]:
         pass
+
+    def split_documents(
+        self,
+        documents: list[Document],
+    ) -> list[TextChunk]:
+        text_chunks = self._split_documents(documents=documents)
+        return [
+            TextChunk(
+                text=tc.text,
+                metadata=tc.metadata | {"chunk_id": idx},
+                is_table=tc.is_table,
+                num_tokens=tc.num_tokens,
+            )
+            for idx, tc in enumerate(text_chunks, start=1)
+        ]

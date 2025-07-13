@@ -12,20 +12,15 @@ class TitleSplitter(TextSplitter):
         super().__init__()
         self.title_tag = title_tag
 
-    def _get_text_chunk(
-        self,
-        title_group: list[Document],
-        idx: int,
-    ) -> TextChunk:
+    def _get_text_chunk(self, title_group: list[Document]) -> TextChunk:
         text = " ".join(doc.text for doc in title_group)
         return TextChunk(
             text=text,
             metadata={"title": title_group[0].text},
-            chunk_id=idx,
             num_tokens=self._get_num_tokens(text=text),
         )
 
-    def split_documents(
+    def _split_documents(
         self,
         documents: list[Document],
     ) -> list[TextChunk]:
@@ -35,6 +30,6 @@ class TitleSplitter(TextSplitter):
         )
 
         return [
-            self._get_text_chunk(title_group=title_group, idx=idx)
-            for idx, title_group in enumerate(title_groups, start=1)
+            self._get_text_chunk(title_group=title_group)
+            for title_group in title_groups
         ]

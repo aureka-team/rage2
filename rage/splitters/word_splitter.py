@@ -89,12 +89,9 @@ class WordSplitter(TextSplitter):
             for text in text_chunks
         ]
 
-    def split_documents(
+    def _split_documents(
         self,
         documents: list[Document],
     ) -> list[TextChunk]:
         text_items = map(self._get_text_items, documents)
-        return [
-            TextChunk(**(ti | {"chunk_id": idx}))
-            for idx, ti in enumerate(flatten(text_items), start=1)
-        ]
+        return [TextChunk(**ti) for ti in flatten(text_items)]
