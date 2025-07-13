@@ -1,4 +1,3 @@
-from tqdm import tqdm
 from more_itertools import windowed, flatten
 
 from common.logger import get_logger
@@ -11,7 +10,7 @@ logger = get_logger(__name__)
 class WordSplitter(TextSplitter):
     def __init__(
         self,
-        chunk_size: int = 128,
+        chunk_size: int = 256,
         chunk_overlap: int = 16,
     ):
         self.chunk_size = chunk_size
@@ -22,28 +21,28 @@ class WordSplitter(TextSplitter):
             chunk_overlap=chunk_overlap,
         )
 
-    def _get_text_chunks(self, document: Document) -> list[TextChunk]:
+    def _get_text_items(self, document: Document) -> list[dict]:
         document_text = document.text
         document_metadata = document.metadata
 
         if document.is_table:
             return [
-                TextChunk(
-                    text=document_text,
-                    metadata=document_metadata,
-                    is_table=True,
-                    num_tokens=self._get_num_tokens(text=document_text),
-                )
+                {
+                    "text": document_text,
+                    "metadata": document_metadata,
+                    "is_table": True,
+                    "num_tokens": self._get_num_tokens(text=document_text),
+                }
             ]
 
         text_words = document_text.split()
         if len(text_words) <= self.chunk_size:
             return [
-                TextChunk(
-                    text=document_text,
-                    metadata=document_metadata,
-                    num_tokens=self._get_num_tokens(text=document_text),
-                )
+                {
+                    "text": document_text,
+                    "metadata": document_metadata,
+                    "num_tokens": self._get_num_tokens(text=document_text),
+                }
             ]
 
         step = self.chunk_size - self.chunk_overlap
@@ -59,11 +58,11 @@ class WordSplitter(TextSplitter):
         if None not in windows[-1]:
             text_chunks = (" ".join(words) for words in windows)
             return [
-                TextChunk(
-                    text=text,
-                    metadata=document_metadata,
-                    num_tokens=self._get_num_tokens(text=text),
-                )
+                {
+                    "text": text,
+                    "metadata": document_metadata,
+                    "num_tokens": self._get_num_tokens(text=text),
+                }
                 for text in text_chunks
             ]
 
@@ -82,11 +81,11 @@ class WordSplitter(TextSplitter):
         )
 
         return [
-            TextChunk(
-                text=text,
-                metadata=document_metadata,
-                num_tokens=self._get_num_tokens(text=text),
-            )
+            {
+                "text": text,
+                "metadata": document_metadata,
+                "num_tokens": self._get_num_tokens(text=text),
+            }
             for text in text_chunks
         ]
 
@@ -94,5 +93,8 @@ class WordSplitter(TextSplitter):
         self,
         documents: list[Document],
     ) -> list[TextChunk]:
-        text_chunks = map(self._get_text_chunks, tqdm(documents))
-        return list(flatten(text_chunks))
+        text_items = map(self._get_text_items, documents)
+        return [
+            TextChunk(**(ti | {"chunk_id": idx}))
+            for idx, ti in enumerate(flatten(text_items), start=1)
+        ]

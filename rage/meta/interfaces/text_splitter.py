@@ -1,7 +1,7 @@
 import tiktoken
 
 from abc import ABC, abstractmethod
-from pydantic import NonNegativeInt
+from pydantic import NonNegativeInt, PositiveInt
 
 from common.logger import get_logger
 
@@ -12,6 +12,7 @@ logger = get_logger(__name__)
 
 
 class TextChunk(Document):
+    chunk_id: PositiveInt
     num_tokens: NonNegativeInt
 
 

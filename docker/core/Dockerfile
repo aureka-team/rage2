@@ -1,4 +1,4 @@
-ARG UV_VERSION=0.7.16
+ARG UV_VERSION=0.7.20
 FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv_source
 
 FROM ubuntu:noble
@@ -20,15 +20,11 @@ RUN --mount=type=cache,target=/var/cache/apt \
     unzip \
     curl \
     git-core \
-    gcc \
-    g++ \
     openssh-client \
     python${PYTHON_VERSION} \
     python${PYTHON_VERSION}-dev \
     python3-setuptools \
     ca-certificates \
-    libgl1 \
-    libglib2.0-0 \
     pandoc \
     && apt-get autoremove -y \
     && apt-get clean \
