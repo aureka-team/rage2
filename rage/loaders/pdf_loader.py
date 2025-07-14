@@ -1,4 +1,5 @@
 from tqdm import tqdm
+from pathlib import Path
 from pypdf import PdfReader
 
 from common.cache import RedisCache
@@ -18,11 +19,15 @@ class PDFLoaeder(TextLoader):
         self,
         source_path,
     ) -> list[Document]:
+        book_name = Path(source_path).stem
         reader = PdfReader(source_path)
         return [
             Document(
                 text=page.extract_text(),
-                metadata={"page_number": page.page_number},
+                metadata={
+                    "title": book_name,
+                    "page_number": page.page_number,
+                },
             )
             for page in tqdm(reader.pages)
         ]
