@@ -1,6 +1,3 @@
-import asyncio
-
-from tqdm import tqdm
 from bs4 import BeautifulSoup
 from unstructured.partition.docx import partition_docx
 
@@ -45,18 +42,3 @@ class DocxLoader(TextLoader):
         ]
 
         return [text_document] + table_documents
-
-    async def _load(
-        self,
-        source_path,
-        pb: tqdm | None = None,
-    ) -> list[Document]:
-        documents = await asyncio.to_thread(
-            self._get_documents,
-            source_path=source_path,
-        )
-
-        if pb is not None:
-            pb.update(1)
-
-        return documents

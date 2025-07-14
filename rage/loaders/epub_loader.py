@@ -1,6 +1,3 @@
-import asyncio
-
-from tqdm import tqdm
 from unstructured.partition.epub import partition_epub
 
 from rage.meta.interfaces import TextLoader, Document
@@ -38,18 +35,3 @@ class EpubLoader(TextLoader):
             for te in text_elements
             if te["type"] not in self.banned_types
         ]
-
-    async def _load(
-        self,
-        source_path,
-        pb: tqdm | None = None,
-    ) -> list[Document]:
-        documents = await asyncio.to_thread(
-            self._get_documents,
-            source_path=source_path,
-        )
-
-        if pb is not None:
-            pb.update(1)
-
-        return documents

@@ -15,10 +15,7 @@ class PDFLoaeder(TextLoader):
     def __init__(self, cache: RedisCache | None = None):
         super().__init__(cache=cache)
 
-    async def _load(
-        self,
-        source_path,
-    ) -> list[Document]:
+    def _get_documents(self, source_path) -> list[Document]:
         book_name = Path(source_path).stem
         reader = PdfReader(source_path)
         return [
