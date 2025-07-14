@@ -1,5 +1,4 @@
 from tqdm import tqdm
-from pathlib import Path
 from pypdf import PdfReader
 
 from common.cache import RedisCache
@@ -12,19 +11,25 @@ logger = get_logger(__name__)
 
 
 class PDFLoaeder(TextLoader):
-    def __init__(self, cache: RedisCache | None = None):
+    def __init__(
+        self,
+        cache: RedisCache | None = None,
+        disable_progress: bool = False,
+    ):
         super().__init__(cache=cache)
+        self.disable_progress = disable_progress
 
     def _get_documents(self, source_path) -> list[Document]:
-        book_name = Path(source_path).stem
         reader = PdfReader(source_path)
         return [
             Document(
                 text=page.extract_text(),
                 metadata={
-                    "title": book_name,
                     "page_number": page.page_number,
                 },
             )
-            for page in tqdm(reader.pages)
+            for page in tqdm(
+                iterable=reader.pages,
+                disable=self.disable_progress,
+            )
         ]

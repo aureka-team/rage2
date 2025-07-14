@@ -2,6 +2,7 @@ import asyncio
 
 from tqdm import tqdm
 from joblib import hash
+from pathlib import Path
 from more_itertools import flatten
 from abc import ABC, abstractmethod
 from pydantic import BaseModel, StrictStr, StrictBool
@@ -46,11 +47,19 @@ class TextLoader(ABC):
             if pb is not None:
                 pb.update(1)
 
-            return documents
+            file_name = Path(source_path).stem
+            return [
+                Document(
+                    **doc.model_dump()
+                    | {"metadata": doc.metadata | {"file_name": file_name}}
+                )
+                for doc in documents
+            ]
 
     async def load(
         self,
         source_path: str,
+        pb: tqdm | None = None,
     ) -> list[Document]:
         cache_key = self._get_cache_key(source_path=source_path)
         if self.cache is not None:
@@ -58,7 +67,11 @@ class TextLoader(ABC):
             if cached_output is not None:
                 return cached_output
 
-        documents = await self._load(source_path=source_path)
+        documents = await self._load(
+            source_path=source_path,
+            pb=pb,
+        )
+
         if self.cache:
             self.cache.save(
                 cache_key=cache_key,
@@ -68,10 +81,20 @@ class TextLoader(ABC):
         return documents
 
     async def batch_load(self, source_paths: list[str]) -> list[Document]:
-        async with asyncio.TaskGroup() as tg:
-            tasks = [
-                tg.create_task(self.load(source_path=source_path))
-                for source_path in source_paths
-            ]
+        with tqdm(
+            total=len(source_paths),
+            ascii=" ##",
+            colour="#808080",
+        ) as pbar:
+            async with asyncio.TaskGroup() as tg:
+                tasks = [
+                    tg.create_task(
+                        self.load(
+                            source_path=source_path,
+                            pbar=pbar,
+                        )
+                    )
+                    for source_path in source_paths
+                ]
 
-        return list(flatten((t.result() for t in tasks)))
+            return list(flatten((t.result() for t in tasks)))

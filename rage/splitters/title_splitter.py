@@ -16,7 +16,7 @@ class TitleSplitter(TextSplitter):
         text = " ".join(doc.text for doc in title_group)
         return TextChunk(
             text=text,
-            metadata={"title": title_group[0].text},
+            metadata=title_group[0].metadata | {"title": title_group[0].text},
             num_tokens=self._get_num_tokens(text=text),
         )
 
