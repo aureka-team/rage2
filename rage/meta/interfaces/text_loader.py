@@ -36,7 +36,7 @@ class TextLoader(ABC):
     async def _load(
         self,
         source_path,
-        pb: tqdm | None = None,
+        pbar: tqdm | None = None,
     ) -> list[Document]:
         async with self.semaphore:
             documents = await asyncio.to_thread(
@@ -44,8 +44,8 @@ class TextLoader(ABC):
                 source_path=source_path,
             )
 
-            if pb is not None:
-                pb.update(1)
+            if pbar is not None:
+                pbar.update(1)
 
             file_name = Path(source_path).stem
             return [
@@ -59,7 +59,7 @@ class TextLoader(ABC):
     async def load(
         self,
         source_path: str,
-        pb: tqdm | None = None,
+        pbar: tqdm | None = None,
     ) -> list[Document]:
         cache_key = self._get_cache_key(source_path=source_path)
         if self.cache is not None:
@@ -69,7 +69,7 @@ class TextLoader(ABC):
 
         documents = await self._load(
             source_path=source_path,
-            pb=pb,
+            pbar=pbar,
         )
 
         if self.cache:
