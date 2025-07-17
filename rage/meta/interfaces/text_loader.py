@@ -7,8 +7,6 @@ from more_itertools import flatten
 from abc import ABC, abstractmethod
 from pydantic import BaseModel, StrictStr, StrictBool
 
-from common.cache import RedisCache
-
 
 class Document(BaseModel):
     text: StrictStr
@@ -17,25 +15,19 @@ class Document(BaseModel):
 
 
 class TextLoader(ABC):
-    def __init__(
-        self,
-        cache: RedisCache | None = None,
-        max_concurrency: int = 10,
-    ):
-        self.cache = cache
+    def __init__(self, max_concurrency: int = 10):
         self.semaphore = asyncio.Semaphore(max_concurrency)
 
-    def _get_cache_key(self, source_path: str) -> str:
-        with open(source_path, "rb") as f:
-            return joblib.hash(f.read())
-
     @abstractmethod
-    async def _get_documents(self, source_path: str) -> list[Document]:
+    async def _get_documents(
+        self,
+        source_path: str | None = None,
+    ) -> list[Document]:
         pass
 
-    async def _load(
+    async def load(
         self,
-        source_path,
+        source_path: str | None = None,
         pbar: tqdm | None = None,
     ) -> list[Document]:
         async with self.semaphore:
@@ -63,30 +55,6 @@ class TextLoader(ABC):
                 )
                 for idx, doc in enumerate(documents, start=1)
             ]
-
-    async def load(
-        self,
-        source_path: str,
-        pbar: tqdm | None = None,
-    ) -> list[Document]:
-        cache_key = self._get_cache_key(source_path=source_path)
-        if self.cache is not None:
-            cached_output = self.cache.load(cache_key=cache_key)
-            if cached_output is not None:
-                return cached_output
-
-        documents = await self._load(
-            source_path=source_path,
-            pbar=pbar,
-        )
-
-        if self.cache:
-            self.cache.save(
-                cache_key=cache_key,
-                obj=documents,
-            )
-
-        return documents
 
     async def batch_load(self, source_paths: list[str]) -> list[Document]:
         with tqdm(

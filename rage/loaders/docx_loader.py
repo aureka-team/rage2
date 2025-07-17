@@ -1,18 +1,16 @@
 from bs4 import BeautifulSoup
 from unstructured.partition.docx import partition_docx
 
-from rage.meta.interfaces import TextLoader, Document
-
-from common.cache import RedisCache
 from common.logger import get_logger
+from rage.meta.interfaces import TextLoader, Document
 
 
 logger = get_logger(__name__)
 
 
 class DocxLoader(TextLoader):
-    def __init__(self, cache: RedisCache | None = None):
-        super().__init__(cache=cache)
+    def __init__(self):
+        super().__init__()
 
     def _get_table_document(self, table_element: dict) -> Document:
         table_html = table_element["metadata"]["text_as_html"]
