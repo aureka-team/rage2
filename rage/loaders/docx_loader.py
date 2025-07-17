@@ -1,3 +1,5 @@
+import asyncio
+
 from bs4 import BeautifulSoup
 from unstructured.partition.docx import partition_docx
 
@@ -40,3 +42,9 @@ class DocxLoader(TextLoader):
 
         documents = [text_document] + table_documents
         return [doc for doc in documents if doc.text]
+
+    async def get_documents(self, source_path) -> list[Document]:
+        return await asyncio.to_thread(
+            self._get_documents,
+            source_path=source_path,
+        )

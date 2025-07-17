@@ -1,3 +1,5 @@
+import asyncio
+
 from tqdm import tqdm
 from pypdf import PdfReader
 
@@ -32,3 +34,9 @@ class PDFLoaeder(TextLoader):
         )
 
         return [doc for doc in documents if doc.text]
+
+    async def get_documents(self, source_path) -> list[Document]:
+        return await asyncio.to_thread(
+            self._get_documents,
+            source_path=source_path,
+        )

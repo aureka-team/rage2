@@ -19,7 +19,7 @@ class TextLoader(ABC):
         self.semaphore = asyncio.Semaphore(max_concurrency)
 
     @abstractmethod
-    async def _get_documents(
+    async def get_documents(
         self,
         source_path: str | None = None,
     ) -> list[Document]:
@@ -31,11 +31,7 @@ class TextLoader(ABC):
         pbar: tqdm | None = None,
     ) -> list[Document]:
         async with self.semaphore:
-            documents = await asyncio.to_thread(
-                self._get_documents,
-                source_path=source_path,
-            )
-
+            documents = await self.get_documents(source_path=source_path)
             if pbar is not None:
                 pbar.update(1)
 
