@@ -1,7 +1,7 @@
+import joblib
 import asyncio
 
 from tqdm import tqdm
-from joblib import hash
 from pathlib import Path
 from more_itertools import flatten
 from abc import ABC, abstractmethod
@@ -27,7 +27,7 @@ class TextLoader(ABC):
 
     def _get_cache_key(self, source_path: str) -> str:
         with open(source_path, "rb") as f:
-            return hash(f.read())
+            return joblib.hash(f.read())
 
     @abstractmethod
     async def _get_documents(self, source_path: str) -> list[Document]:
@@ -51,9 +51,17 @@ class TextLoader(ABC):
             return [
                 Document(
                     **doc.model_dump()
-                    | {"metadata": doc.metadata | {"file_name": file_name}}
+                    | {
+                        "metadata": doc.metadata
+                        | {
+                            "document_index": idx,
+                            "document_id": joblib.hash(doc.text),
+                            "file_name": file_name,
+                            "is_table": doc.is_table,
+                        }
+                    }
                 )
-                for doc in documents
+                for idx, doc in enumerate(documents, start=1)
             ]
 
     async def load(

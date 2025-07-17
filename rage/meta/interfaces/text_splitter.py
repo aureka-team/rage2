@@ -45,11 +45,15 @@ class TextSplitter(ABC):
         text_chunks_ = [
             TextChunk(
                 text=tc.text,
-                metadata=tc.metadata | {"chunk_id": joblib.hash(tc.text)},
+                metadata=tc.metadata
+                | {
+                    "chunk_id": joblib.hash(tc.text),
+                    "chunk_idx": idx,
+                },
                 is_table=tc.is_table,
                 num_tokens=tc.num_tokens,
             )
-            for tc in text_chunks_
+            for idx, tc in enumerate(text_chunks_, start=1)
         ]
 
         text_chunks = []

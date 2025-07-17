@@ -25,13 +25,15 @@ class EpubLoader(TextLoader):
         text_elements = partition_epub(filename=source_path)
         text_elements = [te.to_dict() for te in text_elements]
 
-        return [
+        documents = (
             Document(
-                text=te["text"],
+                text=te["text"].strip(),
                 metadata={
                     "type": te["type"],
                 },
             )
             for te in text_elements
             if te["type"] not in self.banned_types
-        ]
+        )
+
+        return [doc for doc in documents if doc.text]

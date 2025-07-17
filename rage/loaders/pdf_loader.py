@@ -21,9 +21,9 @@ class PDFLoaeder(TextLoader):
 
     def _get_documents(self, source_path) -> list[Document]:
         reader = PdfReader(source_path)
-        return [
+        documents = (
             Document(
-                text=page.extract_text(),
+                text=page.extract_text().strip(),
                 metadata={
                     "page_number": page.page_number,
                 },
@@ -32,4 +32,6 @@ class PDFLoaeder(TextLoader):
                 iterable=reader.pages,
                 disable=self.disable_progress,
             )
-        ]
+        )
+
+        return [doc for doc in documents if doc.text]

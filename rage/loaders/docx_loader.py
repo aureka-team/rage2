@@ -30,9 +30,8 @@ class DocxLoader(TextLoader):
         )
 
         text_elements = [te.to_dict() for te in text_elements]
-
         text_document = Document(
-            text=" ".join(te["text"] for te in text_elements)
+            text=" ".join(te["text"] for te in text_elements).strip()
         )
 
         table_documents = [
@@ -41,4 +40,5 @@ class DocxLoader(TextLoader):
             if te["type"] == "Table"
         ]
 
-        return [text_document] + table_documents
+        documents = [text_document] + table_documents
+        return [doc for doc in documents if doc.text]
