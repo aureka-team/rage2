@@ -48,7 +48,7 @@ class TextSplitter(ABC):
                 metadata=tc.metadata
                 | {
                     "chunk_id": joblib.hash(tc.text),
-                    "chunk_idx": idx,
+                    "chunk_index": idx,
                 },
                 is_table=tc.is_table,
                 num_tokens=tc.num_tokens,
