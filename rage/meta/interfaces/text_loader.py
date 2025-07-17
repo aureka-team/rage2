@@ -39,7 +39,10 @@ class TextLoader(ABC):
             if pbar is not None:
                 pbar.update(1)
 
-            file_name = Path(source_path).stem
+            file_name = (
+                Path(source_path).stem if source_path is not None else None
+            )
+
             return [
                 Document(
                     **doc.model_dump()
