@@ -1,3 +1,4 @@
+import joblib
 import tiktoken
 
 from abc import ABC, abstractmethod
@@ -40,13 +41,40 @@ class TextSplitter(ABC):
         self,
         documents: list[Document],
     ) -> list[TextChunk]:
-        text_chunks = self._split_documents(documents=documents)
-        return [
+        text_chunks_ = self._split_documents(documents=documents)
+        text_chunks_ = [
             TextChunk(
                 text=tc.text,
-                metadata=tc.metadata | {"chunk_id": idx},
+                metadata=tc.metadata | {"chunk_id": joblib.hash(tc.text)},
                 is_table=tc.is_table,
                 num_tokens=tc.num_tokens,
             )
-            for idx, tc in enumerate(text_chunks, start=1)
+            for tc in text_chunks_
         ]
+
+        text_chunks = []
+        for idx, tc in enumerate(text_chunks_):
+            previous_chunk_id = (
+                None if idx == 0 else text_chunks_[idx - 1].metadata["chunk_id"]
+            )
+
+            next_chunk_id = (
+                None
+                if idx == len(text_chunks_) - 1
+                else text_chunks_[idx + 1].metadata["chunk_id"]
+            )
+
+            text_chunks.append(
+                TextChunk(
+                    text=tc.text,
+                    metadata=tc.metadata
+                    | {
+                        "previous_chunk_id": previous_chunk_id,
+                        "next_chunk_id": next_chunk_id,
+                    },
+                    is_table=tc.is_table,
+                    num_tokens=tc.num_tokens,
+                )
+            )
+
+        return text_chunks
