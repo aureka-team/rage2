@@ -1,3 +1,4 @@
+import regex
 import asyncio
 
 from tqdm import tqdm
@@ -18,11 +19,18 @@ class PDFLoaeder(TextLoader):
         super().__init__()
         self.disable_progress = disable_progress
 
+    @staticmethod
+    def clean_text(text: str) -> str:
+        text = regex.sub(r"[\n\t\xa0\xad]", " ", text)
+        text = regex.sub(r" {2,}", " ", text)
+
+        return text.strip()
+
     def _get_documents(self, source_path) -> list[Document]:
         reader = PdfReader(source_path)
         documents = (
             Document(
-                text=page.extract_text().strip(),
+                text=self.clean_text(text=page.extract_text()),
                 metadata={
                     "page_number": page.page_number,
                 },

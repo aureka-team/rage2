@@ -20,6 +20,8 @@ class TokenSplitter(TextSplitter):
 
     def get_text_chunks(self, document: Document) -> TextChunk:
         text_chunks = self.spliter.split_text(text=document.text)
+        text_chunks = (tc.strip() for tc in text_chunks)
+
         return [
             TextChunk(
                 text=text,
