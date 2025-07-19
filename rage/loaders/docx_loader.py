@@ -23,7 +23,7 @@ class DocxLoader(TextLoader):
             is_table=True,
         )
 
-    def _get_documents(self, source_path) -> list[Document]:
+    def _get_documents(self, source_path: str) -> list[Document]:
         text_elements = partition_docx(
             filename=source_path,
             include_page_breaks=False,
@@ -43,7 +43,7 @@ class DocxLoader(TextLoader):
         documents = [text_document] + table_documents
         return [doc for doc in documents if doc.text]
 
-    async def get_documents(self, source_path) -> list[Document]:
+    async def get_documents(self, source_path: str) -> list[Document]:
         return await asyncio.to_thread(
             self._get_documents,
             source_path=source_path,

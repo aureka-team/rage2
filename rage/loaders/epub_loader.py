@@ -17,7 +17,7 @@ class EpubLoader(TextLoader):
         super().__init__()
         self.banned_types = banned_types
 
-    def _get_documents(self, source_path) -> list[Document]:
+    def _get_documents(self, source_path: str) -> list[Document]:
         text_elements = partition_epub(filename=source_path)
         text_elements = [te.to_dict() for te in text_elements]
 
@@ -34,7 +34,7 @@ class EpubLoader(TextLoader):
 
         return [doc for doc in documents if doc.text]
 
-    async def get_documents(self, source_path) -> list[Document]:
+    async def get_documents(self, source_path: str) -> list[Document]:
         return await asyncio.to_thread(
             self._get_documents,
             source_path=source_path,
