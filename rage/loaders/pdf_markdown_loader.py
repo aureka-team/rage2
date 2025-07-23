@@ -18,6 +18,7 @@ class PDFMarkdownLoaeder(TextLoader):
             ignore_images=True,
             ignore_graphics=True,
         )
+
         return [Document(text=md_text)]
 
     async def get_documents(self, source_path: str) -> list[Document]:
