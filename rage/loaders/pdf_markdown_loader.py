@@ -13,7 +13,11 @@ class PDFMarkdownLoaeder(TextLoader):
         super().__init__()
 
     def _get_documents(self, source_path: str) -> list[Document]:
-        md_text = pymupdf4llm.to_markdown(source_path)
+        md_text = pymupdf4llm.to_markdown(
+            source_path,
+            ignore_images=True,
+            ignore_graphics=True,
+        )
         return [Document(text=md_text)]
 
     async def get_documents(self, source_path: str) -> list[Document]:
