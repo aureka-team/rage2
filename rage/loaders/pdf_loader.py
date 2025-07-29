@@ -43,7 +43,13 @@ class PDFLoaeder(TextLoader):
 
         return [doc for doc in documents if doc.text]
 
-    async def get_documents(self, source_path: str) -> list[Document]:
+    async def get_documents(
+        self,
+        source_path: str | None = None,
+    ) -> list[Document]:
+        if source_path is None:
+            return []
+
         return await asyncio.to_thread(
             self._get_documents,
             source_path=source_path,

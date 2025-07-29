@@ -18,7 +18,7 @@ class TokenSplitter(TextSplitter):
             chunk_overlap=chunk_overlap,
         )
 
-    def get_text_chunks(self, document: Document) -> TextChunk:
+    def get_text_chunks(self, document: Document) -> list[TextChunk]:
         text_chunks = self.spliter.split_text(text=document.text)
         text_chunks = (tc.strip() for tc in text_chunks)
 
@@ -31,6 +31,6 @@ class TokenSplitter(TextSplitter):
             for text in text_chunks
         ]
 
-    def _split_documents(self, documents=list[Document]) -> list[TextChunk]:
+    def _split_documents(self, documents: list[Document]) -> list[TextChunk]:
         text_chunks = map(self.get_text_chunks, documents)
         return list(flatten(text_chunks))

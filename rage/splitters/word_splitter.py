@@ -13,13 +13,10 @@ class WordSplitter(TextSplitter):
         chunk_size: int = 256,
         chunk_overlap: int = 16,
     ):
+        super().__init__()
+
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
-
-        super().__init__(
-            chunk_size=chunk_size,
-            chunk_overlap=chunk_overlap,
-        )
 
     def _get_text_items(self, document: Document) -> list[dict]:
         document_text = document.text
@@ -56,7 +53,10 @@ class WordSplitter(TextSplitter):
 
         # NOTE: Return the windows if the last window is complete.
         if None not in windows[-1]:
-            text_chunks = (" ".join(words) for words in windows)
+            text_chunks = (
+                " ".join(w for w in words if w is not None) for words in windows
+            )
+
             return [
                 {
                     "text": text,

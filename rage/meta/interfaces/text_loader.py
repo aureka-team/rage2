@@ -5,11 +5,11 @@ from tqdm import tqdm
 from pathlib import Path
 from more_itertools import flatten
 from abc import ABC, abstractmethod
-from pydantic import BaseModel, StrictStr, StrictBool
+from pydantic import BaseModel, StrictStr, StrictBool, Field
 
 
 class Document(BaseModel):
-    text: StrictStr
+    text: StrictStr = Field(min_length=1)
     metadata: dict = {}
     is_table: StrictBool = False
 

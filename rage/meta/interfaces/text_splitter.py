@@ -17,14 +17,7 @@ class TextChunk(Document):
 
 
 class TextSplitter(ABC):
-    def __init__(
-        self,
-        chunk_size: int | None = None,
-        chunk_overlap: int | None = None,
-        tt_encoder_name: str = "gpt-4o",
-    ):
-        self.chunk_size = chunk_size
-        self.chunk_overlap = chunk_overlap
+    def __init__(self, tt_encoder_name: str = "gpt-4o"):
         self.tt_encoder = tiktoken.encoding_for_model(tt_encoder_name)
 
     def _get_num_tokens(self, text: str) -> int:

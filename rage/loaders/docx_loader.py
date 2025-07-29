@@ -19,7 +19,7 @@ class DocxLoader(TextLoader):
         soup = BeautifulSoup(table_html, "html.parser")
 
         return Document(
-            text=soup.prettify(),
+            text=str(soup.prettify()),
             is_table=True,
         )
 
@@ -43,7 +43,13 @@ class DocxLoader(TextLoader):
         documents = [text_document] + table_documents
         return [doc for doc in documents if doc.text]
 
-    async def get_documents(self, source_path: str) -> list[Document]:
+    async def get_documents(
+        self,
+        source_path: str | None = None,
+    ) -> list[Document]:
+        if source_path is None:
+            return []
+
         return await asyncio.to_thread(
             self._get_documents,
             source_path=source_path,
