@@ -12,7 +12,6 @@ from qdrant_client.http.models import Distance, SparseVectorParams, VectorParams
 
 from langchain.storage import LocalFileStore
 from langchain_core.documents import Document
-from langchain_openai import OpenAIEmbeddings
 from langchain_core.embeddings import Embeddings
 from langchain.embeddings import CacheBackedEmbeddings
 from langchain.vectorstores.base import VectorStoreRetriever
@@ -42,20 +41,22 @@ class RetrieverItem(BaseModel):
 class Retriever:
     def __init__(
         self,
-        dense_embed_model_name: str = "text-embedding-3-large",
-        dense_embed_dimensions: int = 256,
-        dense_embed_chunk_size: int = 1024,
-        dense_embed_show_progress_bar: bool = False,
+        dense_embeddings: Embeddings,
         dense_embed_doc_cache_path: str | None = DENSE_EMBED_DOC_CACHE_PATH,
         dense_embed_query_cache_path: str | None = DENSE_EMBED_QUERY_CACHE_PATH,
         sparse_embed_model_name: str = "Qdrant/bm25",
     ):
-        self.dense_embed_dimensions = dense_embed_dimensions
+        assert dense_embeddings.dimensions is not None, (  # type: ignore
+            "Expected 'dense_embeddings.dimensions' to be set."
+        )
+
+        assert dense_embeddings.model is not None, (  # type: ignore
+            "Expected 'dense_embeddings.model' to be set."
+        )
+
+        self.dense_embed_dimensions = dense_embeddings.dimensions
         self.dense_embeddings = self._get_dense_embeddings(
-            model_name=dense_embed_model_name,
-            dimensions=dense_embed_dimensions,
-            chunk_size=dense_embed_chunk_size,
-            show_progress_bar=dense_embed_show_progress_bar,
+            dense_embeddings=dense_embeddings,
             dense_embed_doc_cache_path=dense_embed_doc_cache_path,
             dense_embed_query_cache_path=dense_embed_query_cache_path,
         )
@@ -78,22 +79,12 @@ class Retriever:
 
     def _get_dense_embeddings(
         self,
-        model_name: str,
-        dimensions: int,
-        chunk_size: int,
-        show_progress_bar: bool,
+        dense_embeddings: Embeddings,
         dense_embed_doc_cache_path: str | None,
         dense_embed_query_cache_path: str | None,
     ) -> Embeddings:
-        underlying_embeddings = OpenAIEmbeddings(
-            model=model_name,
-            dimensions=dimensions,
-            show_progress_bar=show_progress_bar,
-            chunk_size=chunk_size,
-        )
-
         if dense_embed_doc_cache_path is None:
-            return underlying_embeddings
+            return dense_embeddings
 
         query_embedding_cache = (
             True
@@ -102,11 +93,11 @@ class Retriever:
         )
 
         return CacheBackedEmbeddings.from_bytes_store(
-            underlying_embeddings=underlying_embeddings,
+            underlying_embeddings=dense_embeddings,
             document_embedding_cache=LocalFileStore(
                 root_path=dense_embed_doc_cache_path
             ),
-            namespace=model_name,
+            namespace=dense_embeddings.model,  # type: ignore
             query_embedding_cache=query_embedding_cache,
         )
 
@@ -149,7 +140,7 @@ class Retriever:
             collection_name=collection_name,
             vectors_config={
                 "dense": VectorParams(
-                    size=self.dense_embed_dimensions,
+                    size=self.dense_embed_dimensions,  # type: ignore
                     distance=Distance.COSINE,
                 )
             },
