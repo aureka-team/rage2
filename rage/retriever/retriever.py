@@ -1,8 +1,8 @@
 import os
 
-from uuid import uuid4
-from typing import Literal
+# from typing import Literal
 from functools import lru_cache
+from uuid import uuid4
 from common.logger import get_logger
 
 from pydantic import BaseModel, StrictStr, NonNegativeFloat
@@ -14,7 +14,8 @@ from langchain.storage import LocalFileStore
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 from langchain.embeddings import CacheBackedEmbeddings
-from langchain.vectorstores.base import VectorStoreRetriever
+
+# from langchain.vectorstores.base import VectorStoreRetriever
 from langchain_qdrant import QdrantVectorStore, FastEmbedSparse, RetrievalMode
 
 from rage.meta.interfaces import TextChunk
@@ -195,6 +196,7 @@ class Retriever:
         collection_name: str,
         query: str,
         k: int = 10,
+        score_threshold: int | None = None,
         search_filter: models.Filter | None = None,
     ) -> list[RetrieverItem]:
         vector_store = self._get_dense_vector_store(
@@ -204,6 +206,7 @@ class Retriever:
         results = await vector_store.asimilarity_search_with_score(
             query=query,
             k=k,
+            score_threshold=score_threshold,
             filter=search_filter,
         )
 
@@ -214,6 +217,7 @@ class Retriever:
         collection_name: str,
         query: str,
         k: int = 10,
+        score_threshold: int | None = None,
         search_filter: models.Filter | None = None,
     ) -> list[RetrieverItem]:
         vector_store = self._get_hybrid_vector_store(
@@ -223,50 +227,51 @@ class Retriever:
         results = await vector_store.asimilarity_search_with_score(
             query=query,
             k=k,
+            score_threshold=score_threshold,
             filter=search_filter,
         )
 
         return self._parse_results(results=results)
 
-    @lru_cache()
-    def _get_retriever(
-        self,
-        collection_name: str,
-        search_type: str,
-        k: int,
-    ) -> VectorStoreRetriever:
-        vector_store = self.search_type_map[search_type](
-            collection_name=collection_name
-        )
+    # @lru_cache()
+    # def _get_retriever(
+    #     self,
+    #     collection_name: str,
+    #     search_type: str,
+    #     k: int,
+    # ) -> VectorStoreRetriever:
+    #     vector_store = self.search_type_map[search_type](
+    #         collection_name=collection_name
+    #     )
 
-        return vector_store.as_retriever(
-            search_type="mmr",
-            search_kwargs={
-                "k": k,
-            },
-        )
+    #     return vector_store.as_retriever(
+    #         search_type="mmr",
+    #         search_kwargs={
+    #             "k": k,
+    #         },
+    #     )
 
-    async def retrieve(
-        self,
-        collection_name: str,
-        query: str,
-        k: int = 10,
-        search_type: Literal["dense", "hybrid"] = "dense",
-    ) -> list[RetrieverItem]:
-        retriever = self._get_retriever(
-            collection_name=collection_name,
-            search_type=search_type,
-            k=k,
-        )
+    # async def retrieve(
+    #     self,
+    #     collection_name: str,
+    #     query: str,
+    #     k: int = 10,
+    #     search_type: Literal["dense", "hybrid"] = "dense",
+    # ) -> list[RetrieverItem]:
+    #     retriever = self._get_retriever(
+    #         collection_name=collection_name,
+    #         search_type=search_type,
+    #         k=k,
+    #     )
 
-        results = await retriever.ainvoke(input=query)
-        return [
-            RetrieverItem(
-                text=r.page_content,
-                metadata=r.metadata,
-            )
-            for r in results
-        ]
+    #     results = await retriever.ainvoke(input=query)
+    #     return [
+    #         RetrieverItem(
+    #             text=r.page_content,
+    #             metadata=r.metadata,
+    #         )
+    #         for r in results
+    #     ]
 
     def scroll(
         self,
