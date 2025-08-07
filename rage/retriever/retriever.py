@@ -196,7 +196,7 @@ class Retriever:
         collection_name: str,
         query: str,
         k: int = 10,
-        score_threshold: int | None = None,
+        score_threshold: float | None = None,
         search_filter: models.Filter | None = None,
     ) -> list[RetrieverItem]:
         vector_store = self._get_dense_vector_store(
@@ -217,7 +217,7 @@ class Retriever:
         collection_name: str,
         query: str,
         k: int = 10,
-        score_threshold: int | None = None,
+        score_threshold: float | None = None,
         search_filter: models.Filter | None = None,
     ) -> list[RetrieverItem]:
         vector_store = self._get_hybrid_vector_store(
