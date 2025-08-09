@@ -1,4 +1,4 @@
-name: Publish to GitHub Packages
+name: Publish (GitHub PyPI)
 
 on:
     push:
@@ -6,10 +6,10 @@ on:
 
 jobs:
     publish:
-        permissions:
-            packages: write
         runs-on: ubuntu-latest
-
+        permissions:
+            contents: read
+            packages: write
         steps:
             - uses: actions/checkout@v4
 
@@ -26,12 +26,22 @@ jobs:
             - name: Build distributions
               run: |
                   python -m build
+                  ls -lh dist
 
-            - name: Publish to GitHub Packages
+            - name: Publish to GitHub Packages (PyPI)
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  OWNER: ${{ github.repository_owner }}
               run: |
+                  # Twine token auth: username can be __token__
+                  # Try org endpoint first, fall back to user endpoint.
                   python -m twine upload \
                     --username __token__ \
-                    --password "${GITHUB_TOKEN}" \
-                    --repository-url "https://upload.pypi.org/legacy/"  # placeholder; replace below
+                    --password "$GITHUB_TOKEN" \
+                    --repository-url "https://api.github.com/orgs/${OWNER}/packages/pypi/upload" \
+                    dist/* \
+                  || python -m twine upload \
+                    --username __token__ \
+                    --password "$GITHUB_TOKEN" \
+                    --repository-url "https://api.github.com/users/${OWNER}/packages/pypi/upload" \
+                    dist/*
