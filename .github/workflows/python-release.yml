@@ -10,6 +10,7 @@ jobs:
         permissions:
             contents: read
             packages: write
+
         steps:
             - uses: actions/checkout@v4
 
@@ -30,18 +31,13 @@ jobs:
 
             - name: Publish to GitHub Packages (PyPI)
               env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                   OWNER: ${{ github.repository_owner }}
+                  TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  USERNAME: ${{ github.actor }}
               run: |
-                  # Twine token auth: username can be __token__
-                  # Try org endpoint first, fall back to user endpoint.
                   python -m twine upload \
-                    --username __token__ \
-                    --password "$GITHUB_TOKEN" \
-                    --repository-url "https://api.github.com/orgs/${OWNER}/packages/pypi/upload" \
-                    dist/* \
-                  || python -m twine upload \
-                    --username __token__ \
-                    --password "$GITHUB_TOKEN" \
-                    --repository-url "https://api.github.com/users/${OWNER}/packages/pypi/upload" \
+                    --skip-existing \
+                    --username "$USERNAME" \
+                    --password "$TOKEN" \
+                    --repository-url "https://upload.pypi.pkg.github.com/${OWNER}/" \
                     dist/*
