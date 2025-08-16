@@ -1,4 +1,5 @@
-import joblib
+# import joblib
+import xxhash
 import tiktoken
 
 from abc import ABC, abstractmethod
@@ -40,7 +41,8 @@ class TextSplitter(ABC):
                 text=tc.text,
                 metadata=tc.metadata
                 | {
-                    "chunk_id": joblib.hash(tc.text),
+                    # "chunk_id": joblib.hash(tc.text),
+                    "chunk_id": xxhash.xxh32(tc.text).hexdigest(),
                     "chunk_index": idx,
                 },
                 is_table=tc.is_table,

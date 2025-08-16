@@ -1,4 +1,5 @@
-import joblib
+# import joblib
+import xxhash
 import asyncio
 
 from tqdm import tqdm
@@ -46,7 +47,8 @@ class TextLoader(ABC):
                         "metadata": doc.metadata
                         | {
                             "document_index": idx,
-                            "document_id": joblib.hash(doc.text),
+                            # "document_id": joblib.hash(doc.text),
+                            "document_id": xxhash.xxh32(doc.text).hexdigest(),
                             "file_name": file_name,
                             "is_table": doc.is_table,
                         }
