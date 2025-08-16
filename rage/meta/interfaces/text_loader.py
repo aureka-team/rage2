@@ -48,7 +48,7 @@ class TextLoader(ABC):
                         | {
                             "document_index": idx,
                             # "document_id": joblib.hash(doc.text),
-                            "document_id": xxhash.xxh32(doc.text).hexdigest(),
+                            "document_id": xxhash.xxh64(doc.text).hexdigest(),
                             "file_name": file_name,
                             "is_table": doc.is_table,
                         }
