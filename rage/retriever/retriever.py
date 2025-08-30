@@ -269,7 +269,7 @@ class Retriever:
             points_selector=models.FilterSelector(filter=delete_filter),
         )
 
-    def create_metadata_index(
+    def create_payload_index(
         self,
         collection_name: str,
         field: str,
@@ -285,17 +285,16 @@ class Retriever:
             collection_name=collection_name
         )
 
-        full_field_name = f"metadata.{field}"
         existing_indexes = set(collection_info.payload_schema.keys())
-        if f"metadata.{field}" in existing_indexes:
+        if field in existing_indexes:
             logger.info(
-                f"Index on {full_field_name} already exists in collection '{collection_name}'."
+                f"Index on {field} already exists in collection '{collection_name}'."
             )
 
             return
 
         self.qadrant_client.create_payload_index(
             collection_name=collection_name,
-            field_name=f"metadata.{field}",
+            field_name=field,
             field_schema=field_type,
         )
