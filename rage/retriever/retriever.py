@@ -258,7 +258,7 @@ class Retriever:
         delete_filter = models.Filter(
             must=[
                 models.FieldCondition(
-                    key=f"metadata.{field}",
+                    key=field,
                     match=models.MatchValue(value=value),
                 )
             ]
