@@ -246,7 +246,7 @@ class Retriever:
     def delete_chunks(
         self,
         collection_name: str,
-        field: str,
+        key: str,
         value: str | int | bool,
     ) -> None:
         if not self.qadrant_client.collection_exists(
@@ -258,7 +258,7 @@ class Retriever:
         delete_filter = models.Filter(
             must=[
                 models.FieldCondition(
-                    key=field,
+                    key=key,
                     match=models.MatchValue(value=value),
                 )
             ]
@@ -272,7 +272,7 @@ class Retriever:
     def create_payload_index(
         self,
         collection_name: str,
-        field: str,
+        field_name: str,
         field_type: models.PayloadSchemaType = models.PayloadSchemaType.KEYWORD,
     ) -> None:
         if not self.qadrant_client.collection_exists(
@@ -286,15 +286,15 @@ class Retriever:
         )
 
         existing_indexes = set(collection_info.payload_schema.keys())
-        if field in existing_indexes:
+        if field_name in existing_indexes:
             logger.info(
-                f"Index on {field} already exists in collection '{collection_name}'."
+                f"Index on {field_name} already exists in collection '{collection_name}'."
             )
 
             return
 
         self.qadrant_client.create_payload_index(
             collection_name=collection_name,
-            field_name=field,
+            field_name=field_name,
             field_schema=field_type,
         )
