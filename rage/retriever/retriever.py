@@ -1,8 +1,7 @@
 import os
 
-# from typing import Literal
-from functools import lru_cache
 from uuid import uuid4
+from functools import lru_cache
 from common.logger import get_logger
 
 from pydantic import BaseModel, StrictStr, NonNegativeFloat
@@ -15,7 +14,6 @@ from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 from langchain.embeddings import CacheBackedEmbeddings
 
-# from langchain.vectorstores.base import VectorStoreRetriever
 from langchain_qdrant import QdrantVectorStore, FastEmbedSparse, RetrievalMode
 
 from rage.meta.interfaces import TextChunk
@@ -233,46 +231,6 @@ class Retriever:
 
         return self._parse_results(results=results)
 
-    # @lru_cache()
-    # def _get_retriever(
-    #     self,
-    #     collection_name: str,
-    #     search_type: str,
-    #     k: int,
-    # ) -> VectorStoreRetriever:
-    #     vector_store = self.search_type_map[search_type](
-    #         collection_name=collection_name
-    #     )
-
-    #     return vector_store.as_retriever(
-    #         search_type="mmr",
-    #         search_kwargs={
-    #             "k": k,
-    #         },
-    #     )
-
-    # async def retrieve(
-    #     self,
-    #     collection_name: str,
-    #     query: str,
-    #     k: int = 10,
-    #     search_type: Literal["dense", "hybrid"] = "dense",
-    # ) -> list[RetrieverItem]:
-    #     retriever = self._get_retriever(
-    #         collection_name=collection_name,
-    #         search_type=search_type,
-    #         k=k,
-    #     )
-
-    #     results = await retriever.ainvoke(input=query)
-    #     return [
-    #         RetrieverItem(
-    #             text=r.page_content,
-    #             metadata=r.metadata,
-    #         )
-    #         for r in results
-    #     ]
-
     def scroll(
         self,
         collection_name: str,
@@ -283,4 +241,61 @@ class Retriever:
             collection_name=collection_name,
             limit=limit,
             scroll_filter=scroll_filter,
+        )
+
+    def delete_chunks(
+        self,
+        collection_name: str,
+        field: str,
+        value: str | int | bool,
+    ) -> None:
+        if not self.qadrant_client.collection_exists(
+            collection_name=collection_name
+        ):
+            logger.warning(f"collection {collection_name} doesn't exist.")
+            return
+
+        delete_filter = models.Filter(
+            must=[
+                models.FieldCondition(
+                    key=f"metadata.{field}",
+                    match=models.MatchValue(value=value),
+                )
+            ]
+        )
+
+        self.qadrant_client.delete(
+            collection_name=collection_name,
+            points_selector=models.FilterSelector(filter=delete_filter),
+        )
+
+    def create_metadata_index(
+        self,
+        collection_name: str,
+        field: str,
+        field_type: models.PayloadSchemaType = models.PayloadSchemaType.KEYWORD,
+    ) -> None:
+        if not self.qadrant_client.collection_exists(
+            collection_name=collection_name
+        ):
+            logger.warning(f"collection {collection_name} doesn't exist.")
+            return
+
+        collection_info = self.qadrant_client.get_collection(
+            collection_name=collection_name
+        )
+
+        full_field_name = f"metadata.{field}"
+        existing_indexes = set(collection_info.payload_schema.keys())
+        if f"metadata.{field}" in existing_indexes:
+            logger.info(
+                f"Index on {full_field_name} already exists in collection '{collection_name}'."
+            )
+
+            return
+
+        self.qadrant_client.create_payload_index(
+            collection_name=collection_name,
+            field_name=f"metadata.{field}",
+            field_schema=field_type,
         )
