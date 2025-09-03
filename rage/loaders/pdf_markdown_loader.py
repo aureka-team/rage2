@@ -8,7 +8,7 @@ from rage.meta.interfaces import TextLoader, Document
 logger = get_logger(__name__)
 
 
-class PDFMarkdownLoaeder(TextLoader):
+class PDFMarkdownLoader(TextLoader):
     def __init__(self):
         super().__init__()
 
