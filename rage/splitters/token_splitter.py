@@ -12,14 +12,14 @@ class TokenSplitter(TextSplitter):
     ):
         super().__init__()
 
-        self.spliter = TokenTextSplitter(
+        self.splitter = TokenTextSplitter(
             model_name="gpt-4o",
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
         )
 
     def get_text_chunks(self, document: Document) -> list[TextChunk]:
-        text_chunks = self.spliter.split_text(text=document.text)
+        text_chunks = self.splitter.split_text(text=document.text)
         text_chunks = (tc.strip() for tc in text_chunks)
 
         return [

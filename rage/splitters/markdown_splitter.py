@@ -5,7 +5,7 @@ from .token_splitter import TokenSplitter
 class MarkdownSplitter(TokenSplitter):
     def __init__(
         self,
-        chunk_size: int = 256,
+        chunk_size: int = 384,
         chunk_overlap: int = 25,
     ):
         super().__init__()
