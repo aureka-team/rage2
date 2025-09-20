@@ -7,7 +7,12 @@ from common.logger import get_logger
 from pydantic import BaseModel, StrictStr, NonNegativeFloat
 
 from qdrant_client import QdrantClient, models
-from qdrant_client.http.models import Distance, SparseVectorParams, VectorParams
+from qdrant_client.http.models import (
+    Distance,
+    SparseVectorParams,
+    VectorParams,
+    Record,
+)
 
 from langchain.storage import LocalFileStore
 from langchain_core.documents import Document
@@ -236,12 +241,17 @@ class Retriever:
         collection_name: str,
         limit: int = 10,
         scroll_filter: models.Filter | None = None,
-    ):
-        return self.qadrant_client.scroll(
+    ) -> list[Record]:
+        results = self.qadrant_client.scroll(
             collection_name=collection_name,
             limit=limit,
             scroll_filter=scroll_filter,
         )
+
+        if results is None:
+            return []
+
+        return results[0]
 
     def delete_chunks(
         self,
