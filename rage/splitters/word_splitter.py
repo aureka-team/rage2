@@ -22,16 +22,6 @@ class WordSplitter(TextSplitter):
         document_text = document.text
         document_metadata = document.metadata
 
-        if document.is_table:
-            return [
-                {
-                    "text": document_text,
-                    "metadata": document_metadata,
-                    "is_table": True,
-                    "num_tokens": self._get_num_tokens(text=document_text),
-                }
-            ]
-
         text_words = document_text.split()
         if len(text_words) <= self.chunk_size:
             return [

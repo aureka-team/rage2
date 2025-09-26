@@ -45,7 +45,6 @@ class TextSplitter(ABC):
                     "chunk_id": xxhash.xxh64(tc.text).hexdigest(),
                     "chunk_index": idx,
                 },
-                is_table=tc.is_table,
                 num_tokens=tc.num_tokens,
             )
             for idx, tc in enumerate(text_chunks_, start=1)
@@ -71,7 +70,6 @@ class TextSplitter(ABC):
                         "previous_chunk_id": previous_chunk_id,
                         "next_chunk_id": next_chunk_id,
                     },
-                    is_table=tc.is_table,
                     num_tokens=tc.num_tokens,
                 )
             )
