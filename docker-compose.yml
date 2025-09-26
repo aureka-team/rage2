@@ -14,7 +14,7 @@ services:
             - rage
 
     rage-redis:
-        image: redis:8.0.3
+        image: redis:8.2.1
         container_name: rage-redis
         volumes:
             - $PWD/resources/cache/redis:/data
@@ -27,7 +27,7 @@ services:
             - rage
 
     rage-qdrant:
-        image: qdrant/qdrant:v1.15.1
+        image: qdrant/qdrant:v1.15.4
         container_name: rage-qdrant
         ports:
             - "6333:6333"

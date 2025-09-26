@@ -1,4 +1,3 @@
-# import joblib
 import xxhash
 import asyncio
 
@@ -6,13 +5,12 @@ from tqdm import tqdm
 from pathlib import Path
 from more_itertools import flatten
 from abc import ABC, abstractmethod
-from pydantic import BaseModel, StrictStr, StrictBool, Field
+from pydantic import BaseModel, StrictStr, Field
 
 
 class Document(BaseModel):
     text: StrictStr = Field(min_length=1)
     metadata: dict = {}
-    is_table: StrictBool = False
 
 
 class TextLoader(ABC):
@@ -47,10 +45,8 @@ class TextLoader(ABC):
                         "metadata": doc.metadata
                         | {
                             "document_index": idx,
-                            # "document_id": joblib.hash(doc.text),
                             "document_id": xxhash.xxh64(doc.text).hexdigest(),
                             "file_name": file_name,
-                            "is_table": doc.is_table,
                         }
                     }
                 )
@@ -58,7 +54,7 @@ class TextLoader(ABC):
             ]
 
     async def batch_load(self, source_paths: list[str]) -> list[Document]:
-        with tqdm(
+        with tqdm(  # type: ignore
             total=len(source_paths),
             ascii=" ##",
             colour="#808080",

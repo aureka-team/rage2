@@ -35,7 +35,7 @@ class PDFLoaeder(TextLoader):
                     "page_number": page.page_number,
                 },
             )
-            for page in tqdm(
+            for page in tqdm(  # type: ignore
                 iterable=reader.pages,
                 disable=self.disable_progress,
             )

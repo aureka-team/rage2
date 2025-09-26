@@ -1,7 +1,6 @@
 import asyncio
 
-from bs4 import BeautifulSoup
-from unstructured.partition.docx import partition_docx
+from markitdown import MarkItDown
 
 from common.logger import get_logger
 from rage.meta.interfaces import TextLoader, Document
@@ -14,34 +13,11 @@ class DocxLoader(TextLoader):
     def __init__(self):
         super().__init__()
 
-    def _get_table_document(self, table_element: dict) -> Document:
-        table_html = table_element["metadata"]["text_as_html"]
-        soup = BeautifulSoup(table_html, "html.parser")
-
-        return Document(
-            text=str(soup.prettify()),
-            is_table=True,
-        )
-
     def _get_documents(self, source_path: str) -> list[Document]:
-        text_elements = partition_docx(
-            filename=source_path,
-            include_page_breaks=False,
-        )
+        md = MarkItDown()
+        result = md.convert(source_path)
 
-        text_elements = [te.to_dict() for te in text_elements]
-        text_document = Document(
-            text=" ".join(te["text"] for te in text_elements).strip()
-        )
-
-        table_documents = [
-            self._get_table_document(table_element=te)
-            for te in text_elements
-            if te["type"] == "Table"
-        ]
-
-        documents = [text_document] + table_documents
-        return [doc for doc in documents if doc.text]
+        return [Document(text=result.text_content)]
 
     async def get_documents(
         self,
