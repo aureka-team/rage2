@@ -17,7 +17,6 @@ RUN --mount=type=cache,target=/var/cache/apt \
     python3-setuptools \
     ca-certificates \
     pandoc \
-    libreoffice \
     libreoffice-writer \
     && apt-get autoremove -y \
     && apt-get clean \
