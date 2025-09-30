@@ -1,4 +1,3 @@
-# import joblib
 import xxhash
 import tiktoken
 
@@ -41,7 +40,6 @@ class TextSplitter(ABC):
                 text=tc.text,
                 metadata=tc.metadata
                 | {
-                    # "chunk_id": joblib.hash(tc.text),
                     "chunk_id": xxhash.xxh64(tc.text).hexdigest(),
                     "chunk_index": idx,
                 },

@@ -1,4 +1,5 @@
 import xxhash
+import joblib
 import asyncio
 
 from tqdm import tqdm
@@ -7,6 +8,8 @@ from more_itertools import flatten
 from abc import ABC, abstractmethod
 from pydantic import BaseModel, StrictStr, Field
 
+from common.cache import RedisCache
+
 
 class Document(BaseModel):
     text: StrictStr = Field(min_length=1)
@@ -14,7 +17,12 @@ class Document(BaseModel):
 
 
 class TextLoader(ABC):
-    def __init__(self, max_concurrency: int = 10):
+    def __init__(
+        self,
+        cache: RedisCache | None = None,
+        max_concurrency: int = 10,
+    ):
+        self.cache = cache
         self.semaphore = asyncio.Semaphore(max_concurrency)
 
     @abstractmethod
@@ -24,13 +32,34 @@ class TextLoader(ABC):
     ) -> list[Document]:
         pass
 
+    async def cached_get_documents(
+        self,
+        source_path: str | None = None,
+    ) -> list[Document]:
+        cache_key = joblib.hash(source_path)
+        assert cache_key is not None
+
+        if self.cache is not None:
+            cached_documents = self.cache.load(cache_key=cache_key)
+            if cached_documents is not None:
+                return cached_documents
+
+        documents = await self.get_documents(source_path=source_path)
+        if self.cache is not None:
+            self.cache.save(
+                obj=documents,
+                cache_key=cache_key,
+            )
+
+        return documents
+
     async def load(
         self,
         source_path: str | None = None,
         pbar: tqdm | None = None,
     ) -> list[Document]:
         async with self.semaphore:
-            documents = await self.get_documents(source_path=source_path)
+            documents = await self.cached_get_documents(source_path=source_path)
             if pbar is not None:
                 pbar.update(1)
 

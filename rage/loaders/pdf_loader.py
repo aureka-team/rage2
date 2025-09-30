@@ -4,6 +4,7 @@ import asyncio
 from tqdm import tqdm
 from pypdf import PdfReader
 
+from common.cache import RedisCache
 from common.logger import get_logger
 from rage.meta.interfaces import TextLoader, Document
 
@@ -14,9 +15,10 @@ logger = get_logger(__name__)
 class PDFLoaeder(TextLoader):
     def __init__(
         self,
+        cache: RedisCache | None = None,
         disable_progress: bool = False,
     ):
-        super().__init__()
+        super().__init__(cache=cache)
         self.disable_progress = disable_progress
 
     @staticmethod

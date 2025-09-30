@@ -2,6 +2,7 @@ import asyncio
 
 from markitdown import MarkItDown
 
+from common.cache import RedisCache
 from common.logger import get_logger
 from rage.meta.interfaces import TextLoader, Document
 
@@ -10,8 +11,11 @@ logger = get_logger(__name__)
 
 
 class MarkdownLoader(TextLoader):
-    def __init__(self):
-        super().__init__()
+    def __init__(
+        self,
+        cache: RedisCache | None = None,
+    ):
+        super().__init__(cache=cache)
         self.markitdown = MarkItDown()
 
     def _get_documents(self, source_path: str) -> list[Document]:
