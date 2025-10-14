@@ -23,6 +23,10 @@ class PDFMarkdownLoader(TextLoader):
             ignore_graphics=True,
         )
 
+        if not len(md_text):
+            logger.warning(f"no text in file: {source_path}")
+            return []
+
         return [Document(text=md_text)]
 
     async def get_documents(
