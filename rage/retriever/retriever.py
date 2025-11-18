@@ -159,6 +159,7 @@ class Retriever:
         self,
         collection_name: str,
         text_chunks: list[TextChunk],
+        batch_size: int = 256,
     ) -> None:
         if not self.qadrant_client.collection_exists(
             collection_name=collection_name
@@ -179,7 +180,11 @@ class Retriever:
         ]
 
         uuids = [str(uuid4()) for _ in range(len(lg_documents))]
-        vector_store.add_documents(documents=lg_documents, ids=uuids)
+        vector_store.add_documents(
+            documents=lg_documents,
+            ids=uuids,
+            batch_size=batch_size,
+        )
 
     def _parse_results(
         self,
