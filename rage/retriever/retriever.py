@@ -7,12 +7,6 @@ from common.logger import get_logger
 from pydantic import BaseModel, StrictStr, NonNegativeFloat
 
 from qdrant_client import QdrantClient, models
-from qdrant_client.http.models import (
-    Distance,
-    SparseVectorParams,
-    VectorParams,
-    Record,
-)
 
 from langchain.storage import LocalFileStore
 from langchain_core.documents import Document
@@ -143,13 +137,13 @@ class Retriever:
         self.qadrant_client.create_collection(
             collection_name=collection_name,
             vectors_config={
-                "dense": VectorParams(
+                "dense": models.VectorParams(
                     size=self.dense_embed_dimensions,  # type: ignore
-                    distance=Distance.COSINE,
+                    distance=models.Distance.COSINE,
                 )
             },
             sparse_vectors_config={
-                "sparse": SparseVectorParams(
+                "sparse": models.SparseVectorParams(
                     index=models.SparseIndexParams(on_disk=False)
                 )
             },
@@ -220,6 +214,48 @@ class Retriever:
 
         return self._parse_results(results=results)
 
+    async def dense_search_batch(
+        self,
+        collection_name: str,
+        queries: list[str],
+        k: int = 10,
+        score_threshold: float | None = None,
+        search_filter: models.Filter | None = None,
+    ) -> list[list[RetrieverItem]]:
+        vectors = await self.dense_embeddings.aembed_documents(texts=queries)
+        requests = [
+            models.SearchRequest(
+                vector=models.NamedVector(
+                    name="dense",
+                    vector=vector,
+                ),
+                limit=k,
+                filter=search_filter,
+                score_threshold=score_threshold,
+                with_payload=True,
+            )
+            for vector in vectors
+        ]
+
+        results = self.qadrant_client.search_batch(
+            collection_name=collection_name,
+            requests=requests,
+        )
+
+        retriever_items = [
+            [
+                RetrieverItem(
+                    text=item.payload["page_content"],  # type: ignore
+                    metadata=item.payload["metadata"],  # type: ignore
+                    score=item.score,
+                )
+                for item in r
+            ]
+            for r in results
+        ]
+
+        return retriever_items
+
     async def hybrid_search(
         self,
         collection_name: str,
@@ -246,7 +282,7 @@ class Retriever:
         collection_name: str,
         limit: int = 10,
         scroll_filter: models.Filter | None = None,
-    ) -> list[Record]:
+    ) -> list[models.Record]:
         results = self.qadrant_client.scroll(
             collection_name=collection_name,
             limit=limit,

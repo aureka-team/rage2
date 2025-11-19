@@ -8,7 +8,7 @@ from rage.embeddings import IonosEmbeddings
 @lru_cache()
 def get_openai_embeddings(
     model: str = "text-embedding-3-large",
-    dimensions: int = 256,
+    dimensions: int = 1024,
 ) -> OpenAIEmbeddings:
     return OpenAIEmbeddings(
         model=model,
