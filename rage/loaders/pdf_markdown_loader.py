@@ -1,6 +1,6 @@
 import asyncio
 
-import pymupdf.layout  # noqa
+# import pymupdf.layout  # noqa
 import pymupdf4llm
 
 from common.cache import RedisCache
