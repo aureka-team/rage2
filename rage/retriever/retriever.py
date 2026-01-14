@@ -8,10 +8,10 @@ from pydantic import BaseModel, StrictStr, NonNegativeFloat
 
 from qdrant_client import QdrantClient, models
 
-from langchain.storage import LocalFileStore
+from langchain_classic.storage import LocalFileStore
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
-from langchain.embeddings import CacheBackedEmbeddings
+from langchain_classic.embeddings import CacheBackedEmbeddings
 
 from langchain_qdrant import QdrantVectorStore, FastEmbedSparse, RetrievalMode
 
