@@ -6,7 +6,7 @@ from common.logger import get_logger
 
 from pydantic import BaseModel, StrictStr, NonNegativeFloat
 
-from qdrant_client import QdrantClient, models
+from qdrant_client import QdrantClient, AsyncQdrantClient, models
 
 from langchain_classic.storage import LocalFileStore
 from langchain_core.documents import Document
@@ -70,6 +70,12 @@ class Retriever:
             grpc_port=QDRANT_GRPC_PORT,
         )
 
+        self.qadrant_async_client = AsyncQdrantClient(
+            url=QDRANT_HOST,
+            port=QDRANT_PORT,
+            grpc_port=QDRANT_GRPC_PORT,
+        )
+
         self.search_type_map = {
             "dense": self._get_dense_vector_store,
             "hybrid": self._get_hybrid_vector_store,
@@ -127,14 +133,14 @@ class Retriever:
             sparse_vector_name="sparse",
         )
 
-    def create_collection(self, collection_name: str) -> None:
-        if self.qadrant_client.collection_exists(
+    async def create_collection(self, collection_name: str) -> None:
+        if await self.qadrant_async_client.collection_exists(
             collection_name=collection_name
         ):
             logger.warning(f"collection {collection_name} already exists.")
             return
 
-        self.qadrant_client.create_collection(
+        await self.qadrant_async_client.create_collection(
             collection_name=collection_name,
             vectors_config={
                 "dense": models.VectorParams(
@@ -149,7 +155,7 @@ class Retriever:
             },
         )
 
-    def insert_text_chunks(
+    async def insert_text_chunks(
         self,
         collection_name: str,
         text_chunks: list[TextChunk],
@@ -174,7 +180,7 @@ class Retriever:
         ]
 
         uuids = [str(uuid4()) for _ in range(len(lg_documents))]
-        vector_store.add_documents(
+        await vector_store.aadd_documents(
             documents=lg_documents,
             ids=uuids,
             batch_size=batch_size,
@@ -277,13 +283,13 @@ class Retriever:
 
         return self._parse_results(results=results)
 
-    def scroll(
+    async def scroll(
         self,
         collection_name: str,
         limit: int = 10,
         scroll_filter: models.Filter | None = None,
     ) -> list[models.Record]:
-        results = self.qadrant_client.scroll(
+        results = await self.qadrant_async_client.scroll(
             collection_name=collection_name,
             limit=limit,
             scroll_filter=scroll_filter,
@@ -294,13 +300,13 @@ class Retriever:
 
         return results[0]
 
-    def delete_chunks(
+    async def delete_chunks(
         self,
         collection_name: str,
         key: str,
         value: str | int | bool,
     ) -> None:
-        if not self.qadrant_client.collection_exists(
+        if not await self.qadrant_async_client.collection_exists(
             collection_name=collection_name
         ):
             logger.warning(f"collection {collection_name} doesn't exist.")
@@ -315,24 +321,24 @@ class Retriever:
             ]
         )
 
-        self.qadrant_client.delete(
+        await self.qadrant_async_client.delete(
             collection_name=collection_name,
             points_selector=models.FilterSelector(filter=delete_filter),
         )
 
-    def create_payload_index(
+    async def create_payload_index(
         self,
         collection_name: str,
         field_name: str,
         field_type: models.PayloadSchemaType = models.PayloadSchemaType.KEYWORD,
     ) -> None:
-        if not self.qadrant_client.collection_exists(
+        if not await self.qadrant_async_client.collection_exists(
             collection_name=collection_name
         ):
             logger.warning(f"collection {collection_name} doesn't exist.")
             return
 
-        collection_info = self.qadrant_client.get_collection(
+        collection_info = await self.qadrant_async_client.get_collection(
             collection_name=collection_name
         )
 
@@ -344,7 +350,7 @@ class Retriever:
 
             return
 
-        self.qadrant_client.create_payload_index(
+        await self.qadrant_async_client.create_payload_index(
             collection_name=collection_name,
             field_name=field_name,
             field_schema=field_type,
