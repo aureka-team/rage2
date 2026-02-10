@@ -4,7 +4,14 @@ from uuid import uuid4
 from functools import lru_cache
 from common.logger import get_logger
 
-from pydantic import BaseModel, StrictStr, NonNegativeFloat
+from pydantic import (
+    BaseModel,
+    StrictStr,
+    NonNegativeFloat,
+    StrictFloat,
+    StrictInt,
+    Field,
+)
 
 from qdrant_client import QdrantClient, AsyncQdrantClient, models
 
@@ -34,6 +41,12 @@ class RetrieverItem(BaseModel):
     text: StrictStr
     metadata: dict
     score: NonNegativeFloat | None = None
+
+
+class WeightedMetadataItem(BaseModel):
+    key: StrictStr
+    value: StrictStr | StrictInt | StrictFloat
+    weight: NonNegativeFloat = Field(le=1.0)
 
 
 class Retriever:
@@ -75,11 +88,6 @@ class Retriever:
             port=QDRANT_PORT,
             grpc_port=QDRANT_GRPC_PORT,
         )
-
-        self.search_type_map = {
-            "dense": self._get_dense_vector_store,
-            "hybrid": self._get_hybrid_vector_store,
-        }
 
     def _get_dense_embeddings(
         self,
@@ -230,11 +238,9 @@ class Retriever:
     ) -> list[list[RetrieverItem]]:
         vectors = await self.dense_embeddings.aembed_documents(texts=queries)
         requests = [
-            models.SearchRequest(
-                vector=models.NamedVector(
-                    name="dense",
-                    vector=vector,
-                ),
+            models.QueryRequest(
+                query=vector,
+                using="dense",
                 limit=k,
                 filter=search_filter,
                 score_threshold=score_threshold,
@@ -243,7 +249,7 @@ class Retriever:
             for vector in vectors
         ]
 
-        results = self.qadrant_client.search_batch(
+        query_responses = await self.qadrant_async_client.query_batch_points(
             collection_name=collection_name,
             requests=requests,
         )
@@ -251,13 +257,13 @@ class Retriever:
         retriever_items = [
             [
                 RetrieverItem(
-                    text=item.payload["page_content"],  # type: ignore
-                    metadata=item.payload["metadata"],  # type: ignore
-                    score=item.score,
+                    text=points.payload["page_content"],  # type: ignore
+                    metadata=points.payload["metadata"],  # type: ignore
+                    score=points.score,
                 )
-                for item in r
+                for points in qr.points
             ]
-            for r in results
+            for qr in query_responses
         ]
 
         return retriever_items
@@ -355,3 +361,58 @@ class Retriever:
             field_name=field_name,
             field_schema=field_type,
         )
+
+    # TODO: score <= 1.0
+    async def dense_search_weighted(
+        self,
+        collection_name: str,
+        query: str,
+        weighted_metadata_items: list[WeightedMetadataItem],
+        k: int = 10,
+        pre_k: int = 50,
+        score_threshold: float | None = None,
+        search_filter: models.Filter | None = None,
+    ) -> list[RetrieverItem]:
+        vector = await self.dense_embeddings.aembed_query(text=query)
+        mult_expressions = [
+            models.MultExpression(
+                mult=[
+                    wmi.weight,
+                    models.FieldCondition(
+                        key=wmi.key,
+                        match=models.MatchValue(value=wmi.value),
+                    ),
+                ]
+            )
+            for wmi in weighted_metadata_items
+        ]
+
+        formula = models.MultExpression(
+            mult=[
+                "$score",
+                models.SumExpression(sum=[1.0] + mult_expressions),
+            ]
+        )
+
+        response = await self.qadrant_async_client.query_points(
+            collection_name=collection_name,
+            prefetch=models.Prefetch(
+                query=vector,
+                using="dense",
+                limit=pre_k,
+                filter=search_filter,
+            ),
+            query=models.FormulaQuery(formula=formula),
+            limit=k,
+            score_threshold=score_threshold,
+            with_payload=True,
+        )
+
+        return [
+            RetrieverItem(
+                text=p.payload["page_content"],  # type: ignore
+                metadata=p.payload["metadata"],  # type: ignore
+                score=p.score,
+            )
+            for p in response.points
+        ]

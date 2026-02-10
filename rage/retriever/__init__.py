@@ -1,1 +1,1 @@
-from .retriever import Retriever, RetrieverItem  # noqa
+from .retriever import Retriever, RetrieverItem, WeightedMetadataItem  # noqa
