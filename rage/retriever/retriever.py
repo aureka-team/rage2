@@ -14,6 +14,7 @@ from pydantic import (
 )
 
 from qdrant_client import QdrantClient, AsyncQdrantClient, models
+from qdrant_client.conversions.common_types import PointId
 
 from langchain_classic.storage import LocalFileStore
 from langchain_core.documents import Document
@@ -294,11 +295,15 @@ class Retriever:
         collection_name: str,
         limit: int = 10,
         scroll_filter: models.Filter | None = None,
+        order_by: models.OrderBy | None = None,
+        offset: PointId | None = None,
     ) -> list[models.Record]:
         results = await self.qadrant_async_client.scroll(
             collection_name=collection_name,
             limit=limit,
             scroll_filter=scroll_filter,
+            order_by=order_by,
+            offset=offset,
         )
 
         if results is None:
