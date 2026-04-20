@@ -1,6 +1,5 @@
 import asyncio
 
-# import pymupdf.layout  # noqa
 import pymupdf4llm
 
 from common.cache import RedisCache
@@ -21,15 +20,17 @@ class PDFMarkdownLoader(TextLoader):
     def _get_documents(self, source_path: str) -> list[Document]:
         md_text = pymupdf4llm.to_markdown(
             source_path,
+            use_ocr=False,
             ignore_images=True,
             ignore_graphics=True,
+            show_progress=True,
         )
 
         if not len(md_text):
             logger.warning(f"no text in file: {source_path}")
             return []
 
-        return [Document(text=md_text)]
+        return [Document(text=md_text)]  # type: ignore
 
     async def get_documents(
         self,
