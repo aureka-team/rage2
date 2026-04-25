@@ -39,11 +39,3 @@ RUN --mount=type=cache,target=/root/.cache \
 
 RUN rm -rf /tmp/*
 WORKDIR /root
-
-ENV DENSE_EMBED_DOC_CACHE_PATH=/resources/cache/embeddings/documents
-ENV DENSE_EMBED_QUERY_CACHE_PATH=/resources/cache/embeddings/queries
-ENV FAST_EMBED_SPARSE_CACHE=/resources/cache/fes
-ENV HF_HUB_CACHE=/resources/cache/hf
-
-ENV REDIS_HOST=rage-redis
-ENV QDRANT_HOST=rage-qdrant

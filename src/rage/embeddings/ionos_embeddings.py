@@ -1,6 +1,6 @@
 import os
 import json
-import requests
+import requests  # type: ignore
 
 from typing import Literal
 from langchain_core.embeddings import Embeddings

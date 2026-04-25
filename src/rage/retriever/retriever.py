@@ -1,16 +1,13 @@
-import os
-
 from uuid import uuid4
 from functools import lru_cache
-from common.logger import get_logger
 
+from rich.console import Console
 from pydantic import (
     BaseModel,
     StrictStr,
     NonNegativeFloat,
     StrictFloat,
     StrictInt,
-    Field,
 )
 
 from qdrant_client import QdrantClient, AsyncQdrantClient, models
@@ -23,19 +20,11 @@ from langchain_classic.embeddings import CacheBackedEmbeddings
 
 from langchain_qdrant import QdrantVectorStore, FastEmbedSparse, RetrievalMode
 
+from rage.config.config import config
 from rage.meta.interfaces import TextChunk
 
 
-QDRANT_HOST = os.getenv("QDRANT_HOST", "localhost")
-QDRANT_PORT = int(os.getenv("QDRANT_PORT", "6333"))
-QDRANT_GRPC_PORT = int(os.getenv("QDRANT_GRPC_PORT", "6334"))
-
-DENSE_EMBED_DOC_CACHE_PATH = os.getenv("DENSE_EMBED_DOC_CACHE_PATH")
-DENSE_EMBED_QUERY_CACHE_PATH = os.getenv("DENSE_EMBED_QUERY_CACHE_PATH")
-FAST_EMBED_SPARSE_CACHE = os.getenv("FAST_EMBED_SPARSE_CACHE")
-
-
-logger = get_logger(__name__)
+console = Console()
 
 
 class RetrieverItem(BaseModel):
@@ -47,15 +36,13 @@ class RetrieverItem(BaseModel):
 class WeightedMetadataItem(BaseModel):
     key: StrictStr
     value: StrictStr | StrictInt | StrictFloat
-    weight: NonNegativeFloat = Field(le=1.0)
+    weight: NonNegativeFloat
 
 
 class Retriever:
     def __init__(
         self,
         dense_embeddings: Embeddings,
-        dense_embed_doc_cache_path: str | None = DENSE_EMBED_DOC_CACHE_PATH,
-        dense_embed_query_cache_path: str | None = DENSE_EMBED_QUERY_CACHE_PATH,
         sparse_embed_model_name: str = "Qdrant/bm25",
     ):
         assert dense_embeddings.dimensions is not None, (  # type: ignore
@@ -69,25 +56,25 @@ class Retriever:
         self.dense_embed_dimensions = dense_embeddings.dimensions
         self.dense_embeddings = self._get_dense_embeddings(
             dense_embeddings=dense_embeddings,
-            dense_embed_doc_cache_path=dense_embed_doc_cache_path,
-            dense_embed_query_cache_path=dense_embed_query_cache_path,
+            dense_embed_doc_cache_path=config.dense_embed_doc_cache_path,
+            dense_embed_query_cache_path=config.dense_embed_query_cache_path,
         )
 
         self.sparse_embeddings = FastEmbedSparse(
             model_name=sparse_embed_model_name,
-            cache_dir=FAST_EMBED_SPARSE_CACHE,
+            cache_dir=config.fast_embed_sparse_cache,
         )
 
         self.qadrant_client = QdrantClient(
-            url=QDRANT_HOST,
-            port=QDRANT_PORT,
-            grpc_port=QDRANT_GRPC_PORT,
+            url=config.qdrant_host,
+            port=config.qdrant_port,
+            grpc_port=config.qdrant_grpc_port,
         )
 
         self.qadrant_async_client = AsyncQdrantClient(
-            url=QDRANT_HOST,
-            port=QDRANT_PORT,
-            grpc_port=QDRANT_GRPC_PORT,
+            url=config.qdrant_host,
+            port=config.qdrant_port,
+            grpc_port=config.qdrant_grpc_port,
         )
 
     def _get_dense_embeddings(
@@ -142,11 +129,27 @@ class Retriever:
             sparse_vector_name="sparse",
         )
 
+    @lru_cache()
+    def _get_sparse_vector_store(
+        self,
+        collection_name: str,
+    ) -> QdrantVectorStore:
+        return QdrantVectorStore(
+            client=self.qadrant_client,
+            collection_name=collection_name,
+            sparse_embedding=self.sparse_embeddings,
+            retrieval_mode=RetrievalMode.SPARSE,
+            sparse_vector_name="sparse",
+        )
+
     async def create_collection(self, collection_name: str) -> None:
         if await self.qadrant_async_client.collection_exists(
             collection_name=collection_name
         ):
-            logger.warning(f"collection {collection_name} already exists.")
+            console.log(
+                f"[bold yellow]WARNING:[/] collection {collection_name} already exists."
+            )
+
             return
 
         await self.qadrant_async_client.create_collection(
@@ -173,7 +176,10 @@ class Retriever:
         if not self.qadrant_client.collection_exists(
             collection_name=collection_name
         ):
-            logger.warning(f"collection {collection_name} doesn't exists.")
+            console.log(
+                f"[bold yellow]WARNING:[/] collection {collection_name} doesn't exists."
+            )
+
             return
 
         vector_store = self._get_hybrid_vector_store(
@@ -290,6 +296,27 @@ class Retriever:
 
         return self._parse_results(results=results)
 
+    async def sparse_search(
+        self,
+        collection_name: str,
+        query: str,
+        k: int = 10,
+        score_threshold: float | None = None,
+        search_filter: models.Filter | None = None,
+    ) -> list[RetrieverItem]:
+        vector_store = self._get_sparse_vector_store(
+            collection_name=collection_name
+        )
+
+        results = await vector_store.asimilarity_search_with_score(
+            query=query,
+            k=k,
+            score_threshold=score_threshold,
+            filter=search_filter,
+        )
+
+        return self._parse_results(results=results)
+
     async def scroll(
         self,
         collection_name: str,
@@ -320,7 +347,10 @@ class Retriever:
         if not await self.qadrant_async_client.collection_exists(
             collection_name=collection_name
         ):
-            logger.warning(f"collection {collection_name} doesn't exist.")
+            console.log(
+                f"[bold yellow]WARNING:[/] collection {collection_name} doesn't exist."
+            )
+
             return
 
         delete_filter = models.Filter(
@@ -346,7 +376,10 @@ class Retriever:
         if not await self.qadrant_async_client.collection_exists(
             collection_name=collection_name
         ):
-            logger.warning(f"collection {collection_name} doesn't exist.")
+            console.log(
+                f"[bold yellow]WARNING:[/] collection {collection_name} doesn't exist."
+            )
+
             return
 
         collection_info = await self.qadrant_async_client.get_collection(
@@ -355,8 +388,8 @@ class Retriever:
 
         existing_indexes = set(collection_info.payload_schema.keys())
         if field_name in existing_indexes:
-            logger.info(
-                f"Index on {field_name} already exists in collection '{collection_name}'."
+            console.log(
+                f"[bold yellow]WARNING:[/] Index on {field_name} already exists in collection '{collection_name}"
             )
 
             return

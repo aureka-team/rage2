@@ -2,13 +2,38 @@ import xxhash
 import joblib
 import asyncio
 
-from tqdm import tqdm
+from typing import Any
 from pathlib import Path
-from more_itertools import flatten
 from abc import ABC, abstractmethod
+
+from tqdm import tqdm  # type: ignore
+from more_itertools import flatten
+
+from aiocache import Cache, cached
+from aiocache.serializers import PickleSerializer
+
 from pydantic import BaseModel, StrictStr, Field
 
-from common.cache import RedisCache
+from rage.config import config
+
+
+def get_cache_key(
+    func: Any,
+    _self: Any,
+    *args: Any,
+    **kwargs: Any,
+) -> str:
+    cache_key = joblib.hash(
+        (
+            func.__module__,
+            func.__qualname__,
+            args,
+            kwargs,
+        )
+    )
+
+    assert cache_key is not None
+    return cache_key
 
 
 class Document(BaseModel):
@@ -19,10 +44,9 @@ class Document(BaseModel):
 class TextLoader(ABC):
     def __init__(
         self,
-        cache: RedisCache | None = None,
         max_concurrency: int = 10,
     ):
-        self.cache = cache
+
         self.semaphore = asyncio.Semaphore(max_concurrency)
 
     @abstractmethod
@@ -32,40 +56,40 @@ class TextLoader(ABC):
     ) -> list[Document]:
         pass
 
-    async def cached_get_documents(
+    @cached(
+        cache=Cache.REDIS,
+        endpoint=config.redis_host,
+        port=config.redis_port,
+        db=config.redis_db,
+        serializer=PickleSerializer(),
+        key_builder=get_cache_key,
+        noself=True,
+    )
+    async def get_documents_cached(
         self,
         source_path: str | None = None,
     ) -> list[Document]:
-        cache_key = joblib.hash(source_path)
-        assert cache_key is not None
-
-        if self.cache is not None:
-            cached_documents = self.cache.load(cache_key=cache_key)
-            if cached_documents is not None:
-                return cached_documents
-
-        documents = await self.get_documents(source_path=source_path)
-        if self.cache is not None:
-            self.cache.save(
-                obj=documents,
-                cache_key=cache_key,
-            )
-
-        return documents
+        return await self.get_documents(source_path=source_path)
 
     async def load(
         self,
         source_path: str | None = None,
+        cached_load: bool = False,
         pbar: tqdm | None = None,
     ) -> list[Document]:
         async with self.semaphore:
-            documents = await self.cached_get_documents(source_path=source_path)
-            if pbar is not None:
-                pbar.update(1)
+            documents = (
+                await self.get_documents(source_path=source_path)
+                if not cached_load
+                else await self.get_documents_cached(source_path=source_path)
+            )
 
             file_name = (
                 Path(source_path).stem if source_path is not None else None
             )
+
+            if pbar is not None:
+                pbar.update(1)
 
             return [
                 Document(
@@ -82,7 +106,11 @@ class TextLoader(ABC):
                 for idx, doc in enumerate(documents, start=1)
             ]
 
-    async def batch_load(self, source_paths: list[str]) -> list[Document]:
+    async def batch_load(
+        self,
+        source_paths: list[str],
+        cached_load: bool = False,
+    ) -> list[Document]:
         with tqdm(  # type: ignore
             total=len(source_paths),
             ascii=" ##",
@@ -93,6 +121,7 @@ class TextLoader(ABC):
                     tg.create_task(
                         self.load(
                             source_path=source_path,
+                            cached_load=cached_load,
                             pbar=pbar,
                         )
                     )

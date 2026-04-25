@@ -1,21 +1,16 @@
 import asyncio
-
 import pymupdf4llm
 
-from common.cache import RedisCache
-from common.logger import get_logger
+from rich.console import Console
 from rage.meta.interfaces import TextLoader, Document
 
 
-logger = get_logger(__name__)
+console = Console()
 
 
 class PDFMarkdownLoader(TextLoader):
-    def __init__(
-        self,
-        cache: RedisCache | None = None,
-    ):
-        super().__init__(cache=cache)
+    def __init__(self):
+        super().__init__()
 
     def _get_documents(self, source_path: str) -> list[Document]:
         md_text = pymupdf4llm.to_markdown(
@@ -27,7 +22,10 @@ class PDFMarkdownLoader(TextLoader):
         )
 
         if not len(md_text):
-            logger.warning(f"no text in file: {source_path}")
+            console.log(
+                f"[bold yellow]WARNING:[/] no text in file: {source_path}"
+            )
+
             return []
 
         return [Document(text=md_text)]  # type: ignore
