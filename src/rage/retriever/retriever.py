@@ -324,6 +324,7 @@ class Retriever:
         scroll_filter: models.Filter | None = None,
         order_by: models.OrderBy | None = None,
         offset: PointId | None = None,
+        with_payload: bool = True,
     ) -> list[models.Record]:
         results = await self.qadrant_async_client.scroll(
             collection_name=collection_name,
@@ -331,6 +332,7 @@ class Retriever:
             scroll_filter=scroll_filter,
             order_by=order_by,
             offset=offset,
+            with_payload=with_payload,
         )
 
         if results is None:
