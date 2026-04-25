@@ -26,6 +26,7 @@ RUN rm /usr/lib/python${PYTHON_VERSION}/EXTERNALLY-MANAGED
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python${PYTHON_VERSION} 1 \
     && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python${PYTHON_VERSION} 1
 
+ENV UV_LINK_MODE=copy
 ENV UV_SYSTEM_PYTHON=1
 COPY --from=uv_source /uv /uvx /bin/
 
