@@ -1,10 +1,14 @@
 from more_itertools import flatten
 
 from langchain_text_splitters import TokenTextSplitter
+from langchain_text_splitters.base import TextSplitter as LangChainTextSplitter
+
 from rage.meta.interfaces import TextSplitter, Document, TextChunk
 
 
 class TokenSplitter(TextSplitter):
+    splitter: LangChainTextSplitter
+
     def __init__(
         self,
         chunk_size: int = 256,

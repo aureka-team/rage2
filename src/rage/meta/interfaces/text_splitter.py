@@ -4,12 +4,7 @@ import tiktoken
 from abc import ABC, abstractmethod
 from pydantic import NonNegativeInt
 
-from common.logger import get_logger
-
 from .text_loader import Document
-
-
-logger = get_logger(__name__)
 
 
 class TextChunk(Document):

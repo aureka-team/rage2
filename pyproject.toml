@@ -14,13 +14,14 @@ classifiers = [
     "Programming Language :: Python :: 3",
 ]
 
+[tool.setuptools]
+package-dir = { "" = "src" }
+
 [tool.setuptools.packages.find]
-include = ["rage"]
+where = ["src"]
+include = ["rage*"]
 
 [tool.setuptools.dynamic]
 dependencies = { file = ["requirements.txt"] }
 
 [tool.setuptools_scm]
-
-[tool.setuptools.package-data]
-"rage" = ["conf/*"]

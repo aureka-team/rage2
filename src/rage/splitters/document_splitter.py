@@ -1,8 +1,4 @@
-from common.logger import get_logger
 from rage.meta.interfaces import TextSplitter, Document, TextChunk
-
-
-logger = get_logger(__name__)
 
 
 class DocumentSplitter(TextSplitter):
