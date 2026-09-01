@@ -4,7 +4,7 @@ from typing import Protocol
 from langchain_openai import OpenAIEmbeddings
 from qdrant_client import models
 
-from rage.api.config import api_config
+from rage.config import config
 from rage.retriever import Retriever
 
 
@@ -17,8 +17,8 @@ class FilterItem(Protocol):
 def get_retriever() -> Retriever:
     return Retriever(
         dense_embeddings=OpenAIEmbeddings(
-            model=api_config.emb_model,
-            dimensions=api_config.emb_dimensions,
+            model=config.emb_model,
+            dimensions=config.emb_dimensions,
         )
     )
 

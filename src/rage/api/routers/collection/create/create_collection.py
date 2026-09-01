@@ -13,6 +13,7 @@ from pydantic import (
     StrictStr,
     field_validator,
 )
+from pydantic_extra_types.language_code import LanguageAlpha2
 
 from rage.api.utils import get_retriever
 from rage.loaders import PDFMarkdownLoader
@@ -53,9 +54,7 @@ class CreateCollectionInput(BaseModel):
     collection_files: list[CollectionFile] = Field(
         description="Files to load, split, embed, and store in the collection."
     )
-    language: StrictStr = Field(
-        min_length=2,
-        max_length=2,
+    language: LanguageAlpha2 = Field(
         description="ISO 639-1 language code for the collection content.",
     )
     overwrite: StrictBool = Field(
@@ -144,7 +143,10 @@ async def _load_file(
 
     file_path = Path(temporary_directory) / f"{collection_file.file_name}.pdf"
     file_path.write_bytes(file_bytes)
-    documents = await PDFMarkdownLoader().load(str(file_path))
+    documents = await PDFMarkdownLoader().load(
+        source_path=str(file_path),
+        cached_load=True,
+    )
     return [
         Document(
             text=document.text,

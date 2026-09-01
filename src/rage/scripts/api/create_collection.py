@@ -1,14 +1,12 @@
+import asyncio
 import base64
 import os
 
-import requests  # type: ignore
+import requests
 from rich.console import Console
 
+from rage.utils.pdf import get_test_pdf
 
-ZARATUSTRA_PDF_URL = (
-    "https://www.argentina.gob.ar/sites/default/files/"
-    "asi_hablo_zaratustra_nietzsche.pdf"
-)
 RAGE_API_URL = os.getenv("RAGE_API_URL", "http://rage-api:8000")
 COLLECTION_NAME = "zaratustra"
 
@@ -16,10 +14,9 @@ console = Console()
 
 
 def main() -> None:
-    console.log(f"Downloading {ZARATUSTRA_PDF_URL}")
-    pdf_response = requests.get(ZARATUSTRA_PDF_URL, timeout=60)
-    pdf_response.raise_for_status()
-    console.log(f"Downloaded {len(pdf_response.content)} bytes")
+    console.log("Loading test PDF")
+    pdf_content = asyncio.run(get_test_pdf())
+    console.log(f"Loaded {len(pdf_content)} bytes")
 
     console.log(f"Creating {COLLECTION_NAME} through {RAGE_API_URL}")
     api_response = requests.post(
@@ -31,7 +28,7 @@ def main() -> None:
                     "file_name": "asi_hablo_zaratustra_nietzsche",
                     "file_type": "application/pdf",
                     "base64_file": base64.b64encode(
-                        pdf_response.content
+                        pdf_content
                     ).decode("ascii"),
                 }
             ],

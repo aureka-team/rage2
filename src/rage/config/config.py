@@ -1,4 +1,4 @@
-from pydantic import StrictInt, StrictStr
+from pydantic import PositiveInt, StrictInt, StrictStr
 from pydantic_settings import BaseSettings
 
 
@@ -14,12 +14,15 @@ class Config(BaseSettings):
     dense_embed_doc_cache_path: StrictStr = (
         "/resources/cache/embeddings/documents"
     )
-
     dense_embed_query_cache_path: StrictStr = (
         "/resources/cache/embeddings/queries"
     )
-
     fast_embed_sparse_cache: StrictStr = "/resources/cache/fes"
+
+    emb_model: StrictStr = "text-embedding-3-large"
+    emb_dimensions: PositiveInt = 1024
+
+    test_pdf_url: StrictStr = "https://www.argentina.gob.ar/sites/default/files/asi_hablo_zaratustra_nietzsche.pdf"
 
 
 config = Config()

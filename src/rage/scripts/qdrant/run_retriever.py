@@ -2,9 +2,6 @@ import asyncio
 import tempfile
 from itertools import cycle
 
-import requests  # type: ignore
-from aiocache import Cache, cached
-from aiocache.serializers import PickleSerializer
 from langchain_openai import OpenAIEmbeddings
 from rich.align import Align
 from rich.console import Console
@@ -15,14 +12,11 @@ from rage.loaders import PDFMarkdownLoader
 from rage.meta.interfaces import Document, TextChunk
 from rage.retriever import Retriever, RetrieverItem
 from rage.splitters import MarkdownSplitter
+from rage.utils.pdf import get_test_pdf
 
 console = Console()
 
 
-ZARATUSTRA_PDF_URL = (
-    "https://www.argentina.gob.ar/sites/default/files/"
-    "asi_hablo_zaratustra_nietzsche.pdf"
-)
 SEMANTIC_QUERY = "Que quiere el gran Dragón?"
 KEYWORD_QUERY = "dragon escama gran"
 COLLECTION_NAME = "rage_test"
@@ -115,30 +109,20 @@ def render_retrieval_details(
     )
 
 
-@cached(
-    cache=Cache.REDIS,
-    endpoint=config.rage_redis_host,
-    port=config.rage_redis_port,
-    db=config.rage_redis_db,
-    serializer=PickleSerializer(),
-    key="scripts:zaratustra:documents",
-)
 async def get_zaratustra_documents() -> list[Document]:
     render_step("PDF download", "downloading Zaratustra")
-    response = await asyncio.to_thread(
-        requests.get,
-        ZARATUSTRA_PDF_URL,
-        timeout=60,
-    )
-    response.raise_for_status()
-    render_step_detail("downloaded bytes", len(response.content))
+    pdf_content = await get_test_pdf()
+    render_step_detail("downloaded bytes", len(pdf_content))
 
     with tempfile.NamedTemporaryFile(suffix=".pdf") as pdf_file:
-        pdf_file.write(response.content)
+        pdf_file.write(pdf_content)
         pdf_file.flush()
 
         render_step("PDF markdown loader", "loading PDF documents")
-        return await PDFMarkdownLoader().load(source_path=pdf_file.name)
+        return await PDFMarkdownLoader().load(
+            source_path=pdf_file.name,
+            cached_load=True,
+        )
 
 
 async def main() -> None:
@@ -155,12 +139,12 @@ async def main() -> None:
     render_step("retriever", "initializing dense and sparse embeddings")
     retriever = Retriever(
         dense_embeddings=OpenAIEmbeddings(
-            model="text-embedding-3-large",
-            dimensions=1024,
+            model=config.emb_model,
+            dimensions=config.emb_dimensions,
         )
     )
-    render_step_detail("dense model", "text-embedding-3-large")
-    render_step_detail("dense dimensions", 1024)
+    render_step_detail("dense model", config.emb_model)
+    render_step_detail("dense dimensions", config.emb_dimensions)
 
     render_step("Qdrant collection", f"checking if {COLLECTION_NAME} exists")
     collection_exists = await retriever.qadrant_async_client.collection_exists(

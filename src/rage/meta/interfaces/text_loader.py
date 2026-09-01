@@ -16,16 +16,21 @@ from rage.config import config
 
 def get_cache_key(
     func: Any,
-    _self: Any,
-    *args: Any,
-    **kwargs: Any,
+    loader: Any,
+    source_path: str | None = None,
 ) -> str:
+    source_hash = (
+        joblib.hash(Path(source_path).read_bytes())
+        if source_path is not None
+        else None
+    )
     cache_key = joblib.hash(
         (
             func.__module__,
             func.__qualname__,
-            args,
-            kwargs,
+            loader.__class__.__module__,
+            loader.__class__.__qualname__,
+            source_hash,
         )
     )
 
