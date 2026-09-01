@@ -15,9 +15,14 @@ from pydantic import (
 )
 from pydantic_extra_types.language_code import LanguageAlpha2
 
+from rage.api.collection_metadata import (
+    remove_collection_metadata,
+    set_collection_metadata,
+)
 from rage.api.utils import get_retriever
+from rage.config import config
 from rage.loaders import PDFMarkdownLoader
-from rage.meta.interfaces import Document, TextChunk
+from rage.meta.interfaces import Document
 from rage.retriever import Retriever
 from rage.splitters import MarkdownSplitter
 
@@ -65,7 +70,13 @@ class CreateCollectionInput(BaseModel):
     @field_validator("name")
     @classmethod
     def normalize_name(cls, value: str) -> str:
-        return "_".join(value.lower().split())
+        normalized_name = "_".join(value.lower().split())
+        if normalized_name == config.collection_metadata:
+            raise ValueError(
+                f"{config.collection_metadata} is a reserved collection name"
+            )
+
+        return normalized_name
 
 
 class GraphStats(BaseModel):
@@ -187,6 +198,7 @@ async def create_collection(
 
     if exists:
         await retriever.qadrant_async_client.delete_collection(request.name)
+        await remove_collection_metadata(retriever, request.name)
 
     with TemporaryDirectory() as temporary_directory:
         document_groups = [
@@ -197,21 +209,14 @@ async def create_collection(
     documents = [document for group in document_groups for document in group]
     chunks = MarkdownSplitter().split_documents(documents)
     collection_documents = [item.file_name for item in request.collection_files]
-    chunks = [
-        TextChunk(
-            text=chunk.text,
-            metadata=chunk.metadata
-            | {
-                "collection_language": request.language,
-                "collection_documents": collection_documents,
-            },
-            num_tokens=chunk.num_tokens,
-        )
-        for chunk in chunks
-    ]
-
     await retriever.create_collection(request.name)
     await retriever.insert_text_chunks(request.name, chunks)
+    await set_collection_metadata(
+        retriever=retriever,
+        collection_name=request.name,
+        language=request.language,
+        documents=collection_documents,
+    )
     return CreateCollectionOutput(
         collection_name=request.name,
         collection_language=request.language,

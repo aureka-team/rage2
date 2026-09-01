@@ -26,9 +26,6 @@ api-stop:
 
 api-restart: api-stop api-up
 
-api-create-zaratustra: api-up
-	docker compose exec -e PYTHONPATH=/workspace/src -e RAGE_API_URL=http://rage-api:$${API_PORT:-8000} rage-devcontainer python -m rage.scripts.api.create_collection
-
 
 redis-start:
 	docker compose up -d rage-redis
@@ -55,6 +52,9 @@ qdrant-flush: qdrant-stop
 
 qdrant-restart: qdrant-stop qdrant-start
 
+
+api-create-collection:
+	docker compose exec -e PYTHONPATH=/workspace/src -e RAGE_API_URL=http://rage-api:$${API_PORT:-8000} rage-devcontainer python -m rage.scripts.api.create_collection
 
 test-retriever: devcontainer-build
 	docker compose run --rm -e PYTHONPATH=/workspace/src --entrypoint="python -m rage.scripts.qdrant.run_retriever" rage-devcontainer

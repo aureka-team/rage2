@@ -3,6 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field, StrictStr
 
+from rage.api.collection_metadata import get_collection_metadata
 from rage.api.utils import get_retriever
 from rage.retriever import Retriever
 
@@ -32,7 +33,7 @@ collection_get_router = APIRouter()
     tags=["collection"],
     summary="Get collection metadata",
     description=(
-        "Returns collection metadata reconstructed from its stored text chunks. "
+        "Returns metadata stored in the collection metadata registry. "
         "An empty response is returned when the collection does not exist."
     ),
 )
@@ -46,13 +47,10 @@ async def get_collection(
     if not exists:
         return GetCollectionOutput()
 
-    records = await retriever.scroll(request.collection_name, limit=1)
-    metadata = records[0].payload.get("metadata", {}) if records else {}
     return GetCollectionOutput(
         collection_name=request.collection_name,
-        collection_metadata={
-            "name": request.collection_name,
-            "language": metadata.get("collection_language"),
-            "documents": metadata.get("collection_documents", []),
-        },
+        collection_metadata=await get_collection_metadata(
+            retriever,
+            request.collection_name,
+        ),
     )

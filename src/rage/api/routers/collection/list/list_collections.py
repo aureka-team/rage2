@@ -3,6 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 
 from rage.api.utils import get_retriever
+from rage.config import config
 from rage.retriever import Retriever
 
 collection_list_router = APIRouter()
@@ -18,4 +19,8 @@ async def list_collections(
     retriever: Annotated[Retriever, Depends(get_retriever)],
 ) -> list[str]:
     response = await retriever.qadrant_async_client.get_collections()
-    return [collection.name for collection in response.collections]
+    return [
+        collection.name
+        for collection in response.collections
+        if collection.name != config.collection_metadata
+    ]

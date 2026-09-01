@@ -3,6 +3,8 @@ from pydantic_settings import BaseSettings
 
 
 class Config(BaseSettings):
+    collection_metadata: StrictStr = "collection_metadata"
+
     rage_redis_host: StrictStr = "rage-redis"
     rage_redis_port: StrictInt = 6379
     rage_redis_db: StrictInt = 0
