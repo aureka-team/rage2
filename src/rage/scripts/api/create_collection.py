@@ -1,64 +1,24 @@
 import asyncio
 import base64
 import os
-from itertools import cycle
 
 import requests
-from rich.align import Align
-from rich.console import Console
-from rich.text import Text
 
+from rage.api.routers.collection.create.create_collection import (
+    CollectionFile,
+    CreateCollectionInput,
+)
+from rage.api.routers.collection.get.get_collection import GetCollectionInput
+from rage.scripts.rendering import (
+    console,
+    render_header,
+    render_step,
+    render_step_detail,
+)
 from rage.utils.pdf import get_test_pdf
 
 RAGE_API_URL = os.getenv("RAGE_API_URL", "http://rage-api:8000")
 COLLECTION_NAME = "zaratustra"
-RAGE_BANNER = (
-    "██████╗  █████╗  ██████╗ ███████╗",
-    "██╔══██╗██╔══██╗██╔════╝ ██╔════╝",
-    "██████╔╝███████║██║  ███╗█████╗  ",
-    "██╔══██╗██╔══██║██║   ██║██╔══╝  ",
-    "██║  ██║██║  ██║╚██████╔╝███████╗",
-    "╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝",
-)
-RAGE_STYLES = (
-    "bold bright_magenta",
-    "bold magenta",
-    "bold bright_cyan",
-)
-
-console = Console()
-
-
-def render_header() -> None:
-    banner = Text()
-    banner.append("\n\n")
-
-    for line, style in zip(RAGE_BANNER, cycle(RAGE_STYLES), strict=False):
-        banner.append(f"{line}\n", style=style)
-
-    banner.append(
-        "R A G   E N G I N E".center(len(RAGE_BANNER[0])),
-        style="dim bright_magenta",
-    )
-    console.print(Align.center(banner))
-
-
-def render_step(label: str, action: str) -> None:
-    message = Text()
-    message.append("\n┌─[ ", style="dim magenta")
-    message.append(f"{label.upper()} ]\n", style="bold white")
-    message.append("└──> ", style="dim magenta")
-    message.append(f"{action.upper()}...\n", style="dim white")
-    console.print(message)
-
-
-def render_step_detail(label: str, value: object) -> None:
-    detail = Text()
-    detail.append(" :: ", style="dim magenta")
-    detail.append(label.upper(), style="bold white")
-    detail.append(" // ", style="dim magenta")
-    detail.append(str(value), style="dim white")
-    console.print(detail)
 
 
 def main() -> None:
@@ -69,9 +29,10 @@ def main() -> None:
     render_step_detail("downloaded bytes", len(pdf_content))
 
     render_step("API collection", f"checking if {COLLECTION_NAME} exists")
+    get_collection_input = GetCollectionInput(collection_name=COLLECTION_NAME)
     existing_collection_response = requests.post(
         f"{RAGE_API_URL}/rage/collection/get",
-        json={"collection_name": COLLECTION_NAME},
+        json=get_collection_input.model_dump(mode="json"),
         timeout=30,
     )
     existing_collection_response.raise_for_status()
@@ -87,22 +48,22 @@ def main() -> None:
 
     render_step("API collection", f"creating {COLLECTION_NAME}")
     render_step_detail("API URL", RAGE_API_URL)
+    create_collection_input = CreateCollectionInput(
+        name=COLLECTION_NAME,
+        collection_files=[
+            CollectionFile(
+                file_name="asi_hablo_zaratustra_nietzsche",
+                file_type="application/pdf",
+                base64_file=base64.b64encode(pdf_content).decode("ascii"),
+            )
+        ],
+        language="es",
+        overwrite=True,
+    )
+
     api_response = requests.post(
         f"{RAGE_API_URL}/rage/collection/create",
-        json={
-            "name": COLLECTION_NAME,
-            "collection_files": [
-                {
-                    "file_name": "asi_hablo_zaratustra_nietzsche",
-                    "file_type": "application/pdf",
-                    "base64_file": base64.b64encode(
-                        pdf_content
-                    ).decode("ascii"),
-                }
-            ],
-            "language": "es",
-            "overwrite": True,
-        },
+        json=create_collection_input.model_dump(mode="json"),
         timeout=900,
     )
     api_response.raise_for_status()
@@ -115,7 +76,7 @@ def main() -> None:
     render_step("collection metadata", f"loading {COLLECTION_NAME}")
     metadata_response = requests.post(
         f"{RAGE_API_URL}/rage/collection/get",
-        json={"collection_name": COLLECTION_NAME},
+        json=get_collection_input.model_dump(mode="json"),
         timeout=30,
     )
     metadata_response.raise_for_status()

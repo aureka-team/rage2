@@ -25,7 +25,6 @@ services:
             dockerfile: ./docker/core/Dockerfile
         volumes:
             - $PWD/resources:/resources
-            - $PWD/notebooks:/notebooks
         env_file:
             - .env
         networks:
@@ -75,6 +74,13 @@ services:
             - "6334:6334"
         volumes:
             - ./resources/db/qdrant:/qdrant/storage
+        environment:
+            QDRANT__STORAGE__QUOTAS__ENABLED: "true"
+            QDRANT__STORAGE__QUOTAS__MAX_RESIDENT_MEMORY_PERCENT: "90"
+        deploy:
+            resources:
+                limits:
+                    memory: 3G
         restart: unless-stopped
         networks:
             - rage

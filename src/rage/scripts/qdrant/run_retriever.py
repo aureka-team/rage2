@@ -1,70 +1,27 @@
 import asyncio
 import tempfile
-from itertools import cycle
 
 from langchain_openai import OpenAIEmbeddings
-from rich.align import Align
-from rich.console import Console
 from rich.text import Text
 
 from rage.config import config
 from rage.loaders import PDFMarkdownLoader
 from rage.meta.interfaces import Document, TextChunk
 from rage.retriever import Retriever, RetrieverItem
+from rage.scripts.rendering import (
+    console,
+    render_header,
+    render_step,
+    render_step_detail,
+)
 from rage.splitters import MarkdownSplitter
 from rage.utils.pdf import get_test_pdf
-
-console = Console()
-
 
 SEMANTIC_QUERY = "Que quiere el gran Dragón?"
 KEYWORD_QUERY = "dragon escama gran"
 COLLECTION_NAME = "rage_test"
-RAGE_BANNER = (
-    "██████╗  █████╗  ██████╗ ███████╗",
-    "██╔══██╗██╔══██╗██╔════╝ ██╔════╝",
-    "██████╔╝███████║██║  ███╗█████╗  ",
-    "██╔══██╗██╔══██║██║   ██║██╔══╝  ",
-    "██║  ██║██║  ██║╚██████╔╝███████╗",
-    "╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝",
-)
-RAGE_STYLES = (
-    "bold bright_magenta",
-    "bold magenta",
-    "bold bright_cyan",
-)
-
-
-def render_header() -> None:
-    banner = Text()
-    banner.append("\n\n")
-
-    for line, style in zip(RAGE_BANNER, cycle(RAGE_STYLES), strict=False):
-        banner.append(f"{line}\n", style=style)
-
-    banner.append(
-        "R A G   E N G I N E".center(len(RAGE_BANNER[0])),
-        style="dim bright_magenta",
-    )
-    console.print(Align.center(banner))
-
-
-def render_step(label: str, action: str) -> None:
-    message = Text()
-    message.append("\n┌─[ ", style="dim magenta")
-    message.append(f"{label.upper()} ]\n", style="bold white")
-    message.append("└──> ", style="dim magenta")
-    message.append(f"{action.upper()}...\n", style="dim white")
-    console.print(message)
-
-
-def render_step_detail(label: str, value: object) -> None:
-    detail = Text()
-    detail.append(" :: ", style="dim magenta")
-    detail.append(label.upper(), style="bold white")
-    detail.append(" // ", style="dim magenta")
-    detail.append(str(value), style="dim white")
-    console.print(detail)
+MAX_ITEMS = 5
+SCORE_THRESHOLD = 0.3
 
 
 def render_collection_details(
@@ -178,8 +135,8 @@ async def main() -> None:
     dense_results = await retriever.dense_search(
         collection_name=COLLECTION_NAME,
         query=SEMANTIC_QUERY,
-        k=5,
-        score_threshold=0.5,
+        k=MAX_ITEMS,
+        score_threshold=SCORE_THRESHOLD,
     )
     render_retrieval_details("dense", SEMANTIC_QUERY, dense_results)
 
@@ -188,7 +145,7 @@ async def main() -> None:
     hybrid_results = await retriever.hybrid_search(
         collection_name=COLLECTION_NAME,
         query=SEMANTIC_QUERY,
-        k=5,
+        k=MAX_ITEMS,
     )
     render_retrieval_details("hybrid", SEMANTIC_QUERY, hybrid_results)
 
@@ -197,7 +154,7 @@ async def main() -> None:
     sparse_results = await retriever.sparse_search(
         collection_name=COLLECTION_NAME,
         query=KEYWORD_QUERY,
-        k=5,
+        k=MAX_ITEMS,
     )
     render_retrieval_details("sparse", KEYWORD_QUERY, sparse_results)
 

@@ -106,13 +106,9 @@ class CreateCollectionOutput(BaseModel):
         default=None,
         description="Number of documents loaded into the new collection.",
     )
-    num_leaf_text_chunks: PositiveInt | None = Field(
+    num_text_chunks: PositiveInt | None = Field(
         default=None,
         description="Number of text chunks inserted into the collection.",
-    )
-    graph_stats: GraphStats | None = Field(
-        default=None,
-        description="Hierarchy statistics when hierarchical indexing is available.",
     )
 
 
@@ -223,5 +219,5 @@ async def create_collection(
         collection_documents=collection_documents,
         created=True,
         num_documents=len(documents),
-        num_leaf_text_chunks=len(chunks),
+        num_text_chunks=len(chunks),
     )

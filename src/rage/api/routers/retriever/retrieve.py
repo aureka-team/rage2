@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends
 from pydantic import (
@@ -13,6 +13,7 @@ from pydantic import (
 )
 
 from rage.api.utils import get_filter, get_retriever
+from rage.llm_agents import Reranker, RerankerDeps, TextChunk
 from rage.retriever import Retriever, RetrieverItem
 
 
@@ -32,38 +33,17 @@ class RetrieverInput(BaseModel):
     query_text: StrictStr = Field(
         description="Natural-language or keyword query used for retrieval."
     )
-    translate_query: bool = Field(
-        default=True,
-        description=(
-            "Compatibility option requesting query translation; translation is not "
-            "currently available in this package."
-        ),
+    search_mode: Literal["dense", "hybrid", "sparse"] = Field(
+        default="hybrid",
+        description="Search type to perform.",
     )
     enable_reranker: StrictBool = Field(
-        default=True,
-        description=(
-            "Compatibility option requesting result reranking; reranking is not "
-            "currently available in this package."
-        ),
-    )
-    enable_llm_response: StrictBool = Field(
         default=False,
-        description=(
-            "Compatibility option requesting a generated answer; answer generation "
-            "is not currently available in this package."
-        ),
+        description="Whether to select and reorder retrieved items with the reranker.",
     )
-    wv_alpha: NonNegativeFloat = Field(
-        default=0.7,
-        le=1.0,
-        description=(
-            "Search mode selector: zero performs sparse search and any positive value "
-            "performs hybrid search."
-        ),
-    )
-    wv_min_similarity: StrictFloat = Field(
-        default=0.4,
-        description="Minimum score accepted from hybrid retrieval.",
+    min_similarity: StrictFloat = Field(
+        default=0.3,
+        description="Minimum score accepted from dense and hybrid retrieval.",
     )
     retriever_limit: PositiveInt = Field(
         default=10,
@@ -73,13 +53,6 @@ class RetrieverInput(BaseModel):
         default_factory=list,
         description="Exact-match metadata filters applied to every collection search.",
     )
-    min_merging_chunks: PositiveInt = Field(
-        default=2,
-        description=(
-            "Compatibility option for hierarchical merging; hierarchical retrieval "
-            "is not currently available in this package."
-        ),
-    )
 
 
 class RetrieverOutputItem(BaseModel):
@@ -87,27 +60,17 @@ class RetrieverOutputItem(BaseModel):
         description="Name of the source document containing the text chunk."
     )
     text: StrictStr = Field(description="Retrieved text chunk.")
-    text_with_context: StrictStr | None = Field(
-        default=None,
-        description="Text chunk enriched with contextual metadata when available.",
-    )
     document_metadata: dict = Field(
         default_factory=dict,
         description="Metadata stored with the source text chunk.",
-    )
-    node_id: StrictStr | None = Field(
-        default=None,
-        description="Hierarchical node identifier when available.",
-    )
-    parent_node_id: StrictStr | None = Field(
-        default=None,
-        description="Identifier of the hierarchical parent node when available.",
     )
     chunk_size: int = Field(
         default=0,
         description="Stored token count or size of the text chunk.",
     )
-    chunk_id: int = Field(description="Sequential identifier of the text chunk.")
+    chunk_id: int = Field(
+        description="Sequential identifier of the text chunk."
+    )
     keyword_score: NonNegativeFloat = Field(
         default=0.0,
         description="Keyword relevance score represented by the Qdrant result score.",
@@ -116,17 +79,13 @@ class RetrieverOutputItem(BaseModel):
         default=0.0,
         description="Vector relevance score represented by the Qdrant result score.",
     )
-    relative_hybrid_score: NonNegativeFloat = Field(
+    score: NonNegativeFloat = Field(
         default=0.0,
-        description="Combined score used to order the returned retrieval results.",
+        description="Retrieval score used to order the returned results.",
     )
     collection_metadata: dict = Field(
         default_factory=dict,
         description="Metadata identifying the collection that produced the result.",
-    )
-    child_node_ids: list[StrictStr] = Field(
-        default_factory=list,
-        description="Identifiers of hierarchical child nodes when available.",
     )
 
 
@@ -138,10 +97,6 @@ class RetrieverOutput(BaseModel):
     relevant_items: list[RetrieverOutputItem] = Field(
         default_factory=list,
         description="Relevant text chunks after optional post-processing.",
-    )
-    llm_response: StrictStr | None = Field(
-        default=None,
-        description="Generated answer when LLM response generation is available.",
     )
     error: StrictBool = Field(
         default=False,
@@ -165,17 +120,37 @@ def _retriever_item(
             metadata.get("document_name", metadata.get("file_name", ""))
         ),
         text=item.text,
-        text_with_context=metadata.get("text_with_context"),
         document_metadata=metadata,
-        node_id=metadata.get("node_id"),
-        parent_node_id=metadata.get("parent_node_id"),
         chunk_size=int(metadata.get("num_tokens", 0)),
         chunk_id=int(metadata.get("chunk_index", chunk_id)),
         keyword_score=score,
         vector_score=score,
-        relative_hybrid_score=score,
+        score=score,
         collection_metadata={"name": collection_name},
     )
+
+
+async def _rerank_items(
+    items: list[RetrieverOutputItem],
+    query_text: str,
+) -> list[RetrieverOutputItem]:
+    indexed_items = dict(enumerate(items, start=1))
+    reranker_output = await Reranker().generate(
+        user_prompt=query_text,
+        agent_deps=RerankerDeps(
+            text_chunks=[
+                TextChunk(chunk_id=chunk_id, text=item.text)
+                for chunk_id, item in indexed_items.items()
+            ],
+            query_text=query_text,
+        ),
+    )
+
+    return [
+        indexed_items[chunk_id]
+        for chunk_id in reranker_output.relevant_chunk_ids
+        if chunk_id in indexed_items
+    ]
 
 
 retrieve_router = APIRouter()
@@ -191,44 +166,62 @@ retrieve_router = APIRouter()
     ),
 )
 async def retrieve(
-    request: RetrieverInput,
+    retrieve_input: RetrieverInput,
     retriever: Annotated[Retriever, Depends(get_retriever)],
 ) -> RetrieverOutput:
     existence = [
         await retriever.qadrant_async_client.collection_exists(name)
-        for name in request.collection_names
+        for name in retrieve_input.collection_names
     ]
     valid_collections = [
         name
-        for name, exists in zip(request.collection_names, existence, strict=True)
+        for name, exists in zip(
+            retrieve_input.collection_names, existence, strict=True
+        )
         if exists
     ]
     invalid_collections = [
         name
-        for name, exists in zip(request.collection_names, existence, strict=True)
+        for name, exists in zip(
+            retrieve_input.collection_names, existence, strict=True
+        )
         if not exists
     ]
     if not valid_collections:
-        return RetrieverOutput(error=True, invalid_collections=invalid_collections)
+        return RetrieverOutput(
+            error=True,
+            invalid_collections=invalid_collections,
+        )
 
-    search_filter = get_filter(request.filters)
+    search_filter = get_filter(retrieve_input.filters)
     result_groups: list[tuple[str, list[RetrieverItem]]] = []
     for collection_name in valid_collections:
-        if request.wv_alpha == 0.0:
-            results = await retriever.sparse_search(
-                collection_name,
-                request.query_text,
-                k=request.retriever_limit,
-                search_filter=search_filter,
-            )
-        else:
-            results = await retriever.hybrid_search(
-                collection_name,
-                request.query_text,
-                k=request.retriever_limit,
-                score_threshold=request.wv_min_similarity,
-                search_filter=search_filter,
-            )
+        match retrieve_input.search_mode:
+            case "dense":
+                results = await retriever.dense_search(
+                    collection_name,
+                    retrieve_input.query_text,
+                    k=retrieve_input.retriever_limit,
+                    score_threshold=retrieve_input.min_similarity,
+                    search_filter=search_filter,
+                )
+
+            case "sparse":
+                results = await retriever.sparse_search(
+                    collection_name,
+                    retrieve_input.query_text,
+                    k=retrieve_input.retriever_limit,
+                    search_filter=search_filter,
+                )
+
+            case "hybrid":
+                results = await retriever.hybrid_search(
+                    collection_name,
+                    retrieve_input.query_text,
+                    k=retrieve_input.retriever_limit,
+                    score_threshold=retrieve_input.min_similarity,
+                    search_filter=search_filter,
+                )
 
         result_groups.append((collection_name, results))
 
@@ -239,11 +232,15 @@ async def retrieve(
     ]
     items = sorted(
         items,
-        key=lambda item: item.relative_hybrid_score,
+        key=lambda item: item.score,
         reverse=True,
-    )[: request.retriever_limit]
+    )[: retrieve_input.retriever_limit]
+    relevant_items = items
+    if retrieve_input.enable_reranker:
+        relevant_items = await _rerank_items(items, retrieve_input.query_text)
+
     return RetrieverOutput(
         retriever_items=items,
-        relevant_items=items,
+        relevant_items=relevant_items,
         invalid_collections=invalid_collections,
     )
