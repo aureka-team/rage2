@@ -23,9 +23,12 @@ make redis-start
 
 - `OPENAI_API_KEY`: required for OpenAI embeddings.
 - `IONOS_TOKEN`: required for [`rage.embeddings.ionos_embeddings.IonosEmbeddings`](./rage/embeddings/ionos_embeddings.py).
-- `QDRANT_HOST`: Qdrant host. Default: `localhost`.
-- `QDRANT_PORT`: Qdrant HTTP port. Default: `6333`.
-- `QDRANT_GRPC_PORT`: Qdrant gRPC port. Default: `6334`.
+- `RAGE_REDIS_HOST`: Redis host. Default: `rage-redis`.
+- `RAGE_REDIS_PORT`: Redis port. Default: `6379`.
+- `RAGE_REDIS_DB`: Redis database. Default: `0`.
+- `RAGE_QDRANT_HOST`: Qdrant host. Default: `rage-qdrant`.
+- `RAGE_QDRANT_PORT`: Qdrant HTTP port. Default: `6333`.
+- `RAGE_QDRANT_GRPC_PORT`: Qdrant gRPC port. Default: `6334`.
 - `DENSE_EMBED_DOC_CACHE_PATH`: optional directory used to cache document embeddings during indexing.
 - `DENSE_EMBED_QUERY_CACHE_PATH`: optional directory used to cache query embeddings during search.
 - `FAST_EMBED_SPARSE_CACHE`: optional directory used by the sparse embedding model cache.

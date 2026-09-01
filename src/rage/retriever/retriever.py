@@ -1,28 +1,24 @@
-from uuid import uuid4
 from functools import lru_cache
+from uuid import uuid4
 
-from rich.console import Console
-from pydantic import (
-    BaseModel,
-    StrictStr,
-    NonNegativeFloat,
-    StrictFloat,
-    StrictInt,
-)
-
-from qdrant_client import QdrantClient, AsyncQdrantClient, models
-from qdrant_client.conversions.common_types import PointId
-
+from langchain_classic.embeddings import CacheBackedEmbeddings
 from langchain_classic.storage import LocalFileStore
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
-from langchain_classic.embeddings import CacheBackedEmbeddings
-
-from langchain_qdrant import QdrantVectorStore, FastEmbedSparse, RetrievalMode
+from langchain_qdrant import FastEmbedSparse, QdrantVectorStore, RetrievalMode
+from pydantic import (
+    BaseModel,
+    NonNegativeFloat,
+    StrictFloat,
+    StrictInt,
+    StrictStr,
+)
+from qdrant_client import AsyncQdrantClient, QdrantClient, models
+from qdrant_client.conversions.common_types import PointId
+from rich.console import Console
 
 from rage.config.config import config
 from rage.meta.interfaces import TextChunk
-
 
 console = Console()
 
@@ -66,15 +62,15 @@ class Retriever:
         )
 
         self.qadrant_client = QdrantClient(
-            url=config.qdrant_host,
-            port=config.qdrant_port,
-            grpc_port=config.qdrant_grpc_port,
+            url=config.rage_qdrant_host,
+            port=config.rage_qdrant_port,
+            grpc_port=config.rage_qdrant_grpc_port,
         )
 
         self.qadrant_async_client = AsyncQdrantClient(
-            url=config.qdrant_host,
-            port=config.qdrant_port,
-            grpc_port=config.qdrant_grpc_port,
+            url=config.rage_qdrant_host,
+            port=config.rage_qdrant_port,
+            grpc_port=config.rage_qdrant_grpc_port,
         )
 
     def _get_dense_embeddings(
@@ -99,9 +95,10 @@ class Retriever:
             ),
             namespace=dense_embeddings.model,  # type: ignore
             query_embedding_cache=query_embedding_cache,
+            key_encoder="sha256",
         )
 
-    @lru_cache()
+    @lru_cache(maxsize=1)
     def _get_dense_vector_store(
         self,
         collection_name: str,
@@ -114,7 +111,7 @@ class Retriever:
             vector_name="dense",
         )
 
-    @lru_cache()
+    @lru_cache(maxsize=1)
     def _get_hybrid_vector_store(
         self,
         collection_name: str,
@@ -129,7 +126,7 @@ class Retriever:
             sparse_vector_name="sparse",
         )
 
-    @lru_cache()
+    @lru_cache(maxsize=1)
     def _get_sparse_vector_store(
         self,
         collection_name: str,

@@ -1,7 +1,7 @@
 {
     "name": "rage",
     "initializeCommand": "make core-build",
-    "dockerComposeFile": "docker-compose.yml",
+    "dockerComposeFile": "../docker-compose.yml",
     "service": "rage-devcontainer",
     "workspaceFolder": "/workspace",
     "customizations": {

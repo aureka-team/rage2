@@ -22,3 +22,6 @@ pymupdf_layout==1.28.2
 tiktoken==0.14.0
 fastembed==0.8.0
 qdrant-client==1.19.0
+
+pytest>=9.1.1
+pytest-asyncio>=1.4.0

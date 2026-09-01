@@ -1,10 +1,9 @@
-import os
 import json
-import requests  # type: ignore
-
+import os
 from typing import Literal
-from langchain_core.embeddings import Embeddings
 
+import requests  # type: ignore
+from langchain_core.embeddings import Embeddings
 
 IONOS_TOKEN = os.getenv("IONOS_TOKEN")
 EMBEDDING_DIMENSIONS = {

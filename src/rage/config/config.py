@@ -3,13 +3,13 @@ from pydantic_settings import BaseSettings
 
 
 class Config(BaseSettings):
-    redis_host: StrictStr = "rage-redis"
-    redis_port: StrictInt = 6379
-    redis_db: StrictInt = 0
+    rage_redis_host: StrictStr = "rage-redis"
+    rage_redis_port: StrictInt = 6379
+    rage_redis_db: StrictInt = 0
 
-    qdrant_host: StrictStr = "rage-qdrant"
-    qdrant_port: StrictInt = 6333
-    qdrant_grpc_port: StrictInt = 6334
+    rage_qdrant_host: StrictStr = "rage-qdrant"
+    rage_qdrant_port: StrictInt = 6333
+    rage_qdrant_grpc_port: StrictInt = 6334
 
     dense_embed_doc_cache_path: StrictStr = (
         "/resources/cache/embeddings/documents"

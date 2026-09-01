@@ -1,4 +1,22 @@
 services:
+    rage-devcontainer:
+        image: rage-devcontainer
+        container_name: rage-devcontainer
+        build:
+            context: .
+            dockerfile: docker/devcontainer/Dockerfile
+        volumes:
+            - .:/workspace:cached
+            - ./resources/:/resources
+        env_file:
+            - .env
+        entrypoint: ["tail", "-f", "/dev/null"]
+        depends_on:
+            - rage-redis
+            - rage-qdrant
+        networks:
+            - rage
+
     rage-core:
         image: rage-core
         container_name: rage-core
@@ -14,7 +32,7 @@ services:
             - rage
 
     rage-redis:
-        image: redis:8.4.0
+        image: redis:8.10.1
         container_name: rage-redis
         volumes:
             - $PWD/resources/cache/redis:/data
@@ -27,7 +45,7 @@ services:
             - rage
 
     rage-qdrant:
-        image: qdrant/qdrant:v1.16.3
+        image: qdrant/qdrant:v1.19.0
         container_name: rage-qdrant
         ports:
             - "6333:6333"

@@ -1,4 +1,4 @@
-.PHONY: core-build devcontainer-build api-build
+.PHONY: core-build core-run devcontainer-build api-build retriever-run
 
 
 core-build:
@@ -9,7 +9,7 @@ core-run: core-build
 
 
 devcontainer-build: core-build
-	docker compose -f .devcontainer/docker-compose.yml build rage-devcontainer
+	docker compose build rage-devcontainer
 
 
 redis-start:
@@ -36,3 +36,7 @@ qdrant-flush: qdrant-stop
 	docker compose up -d rage-qdrant
 
 qdrant-restart: qdrant-stop qdrant-start
+
+
+test-retriever: devcontainer-build
+	docker compose run --rm -e PYTHONPATH=/workspace/src --entrypoint="python -m rage.scripts.qdrant.run_retriever" rage-devcontainer

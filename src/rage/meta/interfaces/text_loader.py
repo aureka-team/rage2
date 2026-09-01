@@ -1,18 +1,15 @@
-import xxhash
-import joblib
 import asyncio
-
-from typing import Any
-from pathlib import Path
 from abc import ABC, abstractmethod
+from pathlib import Path
+from typing import Any
 
-from tqdm import tqdm  # type: ignore
-from more_itertools import flatten
-
+import joblib
+import xxhash
 from aiocache import Cache, cached
 from aiocache.serializers import PickleSerializer
-
-from pydantic import BaseModel, StrictStr, Field
+from more_itertools import flatten
+from pydantic import BaseModel, Field, StrictStr
+from tqdm import tqdm  # type: ignore
 
 from rage.config import config
 
@@ -58,9 +55,9 @@ class TextLoader(ABC):
 
     @cached(
         cache=Cache.REDIS,
-        endpoint=config.redis_host,
-        port=config.redis_port,
-        db=config.redis_db,
+        endpoint=config.rage_redis_host,
+        port=config.rage_redis_port,
+        db=config.rage_redis_db,
         serializer=PickleSerializer(),
         key_builder=get_cache_key,
         noself=True,
@@ -98,7 +95,9 @@ class TextLoader(ABC):
                         "metadata": doc.metadata
                         | {
                             "document_index": idx,
-                            "document_id": xxhash.xxh64(doc.text).hexdigest(),
+                            "document_id": xxhash.xxh64(
+                                doc.text.encode("utf-8")
+                            ).hexdigest(),
                             "file_name": file_name,
                         }
                     }
@@ -128,4 +127,4 @@ class TextLoader(ABC):
                     for source_path in source_paths
                 ]
 
-            return list(flatten((t.result() for t in tasks)))
+            return list(flatten(t.result() for t in tasks))

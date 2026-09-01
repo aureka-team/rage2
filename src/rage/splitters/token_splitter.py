@@ -1,9 +1,8 @@
-from more_itertools import flatten
-
 from langchain_text_splitters import TokenTextSplitter
 from langchain_text_splitters.base import TextSplitter as LangChainTextSplitter
+from more_itertools import flatten
 
-from rage.meta.interfaces import TextSplitter, Document, TextChunk
+from rage.meta.interfaces import Document, TextChunk, TextSplitter
 
 
 class TokenSplitter(TextSplitter):

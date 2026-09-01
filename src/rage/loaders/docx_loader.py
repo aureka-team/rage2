@@ -1,7 +1,8 @@
 import asyncio
 
 from markitdown import MarkItDown
-from rage.meta.interfaces import TextLoader, Document
+
+from rage.meta.interfaces import Document, TextLoader
 
 
 class DocxLoader(TextLoader):
