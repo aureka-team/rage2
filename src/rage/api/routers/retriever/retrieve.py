@@ -64,21 +64,6 @@ class RetrieverOutputItem(BaseModel):
         default_factory=dict,
         description="Metadata stored with the source text chunk.",
     )
-    chunk_size: int = Field(
-        default=0,
-        description="Stored token count or size of the text chunk.",
-    )
-    chunk_id: int = Field(
-        description="Sequential identifier of the text chunk."
-    )
-    keyword_score: NonNegativeFloat = Field(
-        default=0.0,
-        description="Keyword relevance score represented by the Qdrant result score.",
-    )
-    vector_score: NonNegativeFloat = Field(
-        default=0.0,
-        description="Vector relevance score represented by the Qdrant result score.",
-    )
     score: NonNegativeFloat = Field(
         default=0.0,
         description="Retrieval score used to order the returned results.",
@@ -111,7 +96,6 @@ class RetrieverOutput(BaseModel):
 def _retriever_item(
     item: RetrieverItem,
     collection_name: str,
-    chunk_id: int,
 ) -> RetrieverOutputItem:
     metadata = item.metadata
     score = item.score or 0.0
@@ -121,10 +105,6 @@ def _retriever_item(
         ),
         text=item.text,
         document_metadata=metadata,
-        chunk_size=int(metadata.get("num_tokens", 0)),
-        chunk_id=int(metadata.get("chunk_index", chunk_id)),
-        keyword_score=score,
-        vector_score=score,
         score=score,
         collection_metadata={"name": collection_name},
     )
@@ -226,9 +206,9 @@ async def retrieve(
         result_groups.append((collection_name, results))
 
     items = [
-        _retriever_item(item, collection_name, chunk_id)
+        _retriever_item(item, collection_name)
         for collection_name, results in result_groups
-        for chunk_id, item in enumerate(results, start=1)
+        for item in results
     ]
     items = sorted(
         items,

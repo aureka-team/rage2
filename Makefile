@@ -1,4 +1,4 @@
-.PHONY: core-build core-run devcontainer-build api-build api-run api-up api-stop api-restart api-create-zaratustra api-retrieve retriever-run
+.PHONY: core-build core-run devcontainer-build api-build api-run api-up api-stop api-restart api-create-zaratustra api-retrieve neighboring-text-chunks retriever-run
 
 
 core-build:
@@ -58,6 +58,9 @@ api-create-collection:
 
 api-retrieve:
 	docker compose exec -e PYTHONPATH=/workspace/src -e RAGE_API_URL=http://rage-api:$${API_PORT:-8000} rage-devcontainer python -m rage.scripts.api.retrieve
+
+neighboring-text-chunks:
+	docker compose exec -e PYTHONPATH=/workspace/src rage-devcontainer python -m rage.scripts.qdrant.get_neighboring_text_chunks
 
 test-retriever: devcontainer-build
 	docker compose run --rm -e PYTHONPATH=/workspace/src --entrypoint="python -m rage.scripts.qdrant.run_retriever" rage-devcontainer

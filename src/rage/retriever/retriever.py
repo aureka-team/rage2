@@ -9,6 +9,7 @@ from langchain_qdrant import FastEmbedSparse, QdrantVectorStore, RetrievalMode
 from pydantic import (
     BaseModel,
     NonNegativeFloat,
+    NonNegativeInt,
     StrictFloat,
     StrictInt,
     StrictStr,
@@ -186,7 +187,7 @@ class Retriever:
         lg_documents = [
             Document(
                 page_content=tc.text,
-                metadata=tc.metadata,
+                metadata=tc.metadata | {"num_tokens": tc.num_tokens},
             )
             for tc in text_chunks
         ]
@@ -313,6 +314,89 @@ class Retriever:
         )
 
         return self._parse_results(results=results)
+
+    async def get_text_chunk(
+        self,
+        collection_name: str,
+        metadata_key: str,
+        metadata_value: str | int | bool,
+    ) -> RetrieverItem | None:
+        records = await self.scroll(
+            collection_name=collection_name,
+            limit=1,
+            scroll_filter=models.Filter(
+                must=[
+                    models.FieldCondition(
+                        key=metadata_key,
+                        match=models.MatchValue(value=metadata_value),
+                    )
+                ]
+            ),
+        )
+
+        record = next(iter(records), None)
+        if record is None or record.payload is None:
+            return None
+
+        return RetrieverItem(
+            text=record.payload["page_content"],
+            metadata=record.payload["metadata"],
+        )
+
+    async def get_neighboring_text_chunks(
+        self,
+        collection_name: str,
+        chunk_id: str,
+        before: NonNegativeInt = 1,
+        after: NonNegativeInt = 1,
+    ) -> list[RetrieverItem]:
+        center = await self.get_text_chunk(
+            collection_name=collection_name,
+            metadata_key="metadata.chunk_id",
+            metadata_value=chunk_id,
+        )
+
+        if center is None:
+            return []
+
+        if before == 0 and after == 0:
+            return [center]
+
+        document_id = center.metadata.get("document_id")
+        chunk_index = center.metadata.get("chunk_index")
+        if not isinstance(document_id, str) or not isinstance(chunk_index, int):
+            return []
+
+        records = await self.scroll(
+            collection_name=collection_name,
+            limit=before + after + 1,
+            scroll_filter=models.Filter(
+                must=[
+                    models.FieldCondition(
+                        key="metadata.document_id",
+                        match=models.MatchValue(value=document_id),
+                    ),
+                    models.FieldCondition(
+                        key="metadata.chunk_index",
+                        range=models.Range(
+                            gte=max(1, chunk_index - before),
+                            lte=chunk_index + after,
+                        ),
+                    ),
+                ]
+            ),
+        )
+
+        items = [
+            RetrieverItem(
+                text=record.payload["page_content"],
+                metadata=record.payload["metadata"],
+            )
+            for record in records
+            if record.payload is not None
+        ]
+
+        return sorted(items, key=lambda item: item.metadata["chunk_index"])
 
     async def scroll(
         self,

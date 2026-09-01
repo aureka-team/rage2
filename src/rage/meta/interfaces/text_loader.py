@@ -9,7 +9,7 @@ from aiocache import Cache, cached
 from aiocache.serializers import PickleSerializer
 from more_itertools import flatten
 from pydantic import BaseModel, Field, StrictStr
-from tqdm import tqdm  # type: ignore
+from tqdm import tqdm
 
 from rage.config import config
 
@@ -115,7 +115,7 @@ class TextLoader(ABC):
         source_paths: list[str],
         cached_load: bool = False,
     ) -> list[Document]:
-        with tqdm(  # type: ignore
+        with tqdm(
             total=len(source_paths),
             ascii=" ##",
             colour="#808080",
