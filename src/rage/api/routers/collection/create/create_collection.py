@@ -1,5 +1,6 @@
 import base64
 import binascii
+import mimetypes
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Annotated
@@ -21,21 +22,37 @@ from rage.api.collection_metadata import (
 )
 from rage.api.utils import get_retriever
 from rage.config import config
-from rage.loaders import PDFMarkdownLoader
-from rage.meta.interfaces import Document
+from rage.loaders import (
+    AurekaTranscriptionLoader,
+    MarkdownLoader,
+    PDFMarkdownLoader,
+)
+from rage.meta.interfaces import Document, TextLoader
 from rage.retriever import Retriever
 from rage.splitters import MarkdownSplitter
 
-VALID_FILE_TYPES = {"application/json", "application/pdf", "text/plain"}
+VALID_FILE_TYPES = {
+    "application/json",
+    "application/pdf",
+    "text/plain",
+}
+
+FILE_LOADERS: dict[str, type[TextLoader]] = {
+    "json": AurekaTranscriptionLoader,
+    "pdf": PDFMarkdownLoader,
+    "txt": MarkdownLoader,
+}
 
 
 class CollectionFile(BaseModel):
     file_name: StrictStr = Field(
         description="Name used to identify the source document in the collection."
     )
+
     file_type: StrictStr = Field(
         description="MIME type of the encoded file content."
     )
+
     base64_file: StrictStr = Field(
         description="Complete file content encoded as a Base64 string."
     )
@@ -127,33 +144,21 @@ async def _load_file(
     temporary_directory: str,
 ) -> list[Document]:
     file_bytes = _decode_file(collection_file)
-    if collection_file.file_type == "text/plain":
-        try:
-            text = file_bytes.decode("utf-8")
-        except UnicodeDecodeError as error:
-            raise HTTPException(
-                status_code=422,
-                detail=f"{collection_file.file_name} is not valid UTF-8",
-            ) from error
+    file_extension = mimetypes.guess_extension(collection_file.file_type)
+    assert file_extension is not None
+    file_extension = file_extension.removeprefix(".")
 
-        return [
-            Document(
-                text=text, metadata={"document_name": collection_file.file_name}
-            )
-        ]
+    file_path = (
+        Path(temporary_directory)
+        / f"{collection_file.file_name}.{file_extension}"
+    )
 
-    if collection_file.file_type == "application/json":
-        raise HTTPException(
-            status_code=501,
-            detail="application/json audio transcriptions are not supported",
-        )
-
-    file_path = Path(temporary_directory) / f"{collection_file.file_name}.pdf"
     file_path.write_bytes(file_bytes)
-    documents = await PDFMarkdownLoader().load(
+    documents = await FILE_LOADERS[file_extension]().load(
         source_path=str(file_path),
         cached_load=True,
     )
+
     return [
         Document(
             text=document.text,
