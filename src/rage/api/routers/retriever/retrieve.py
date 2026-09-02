@@ -1,3 +1,4 @@
+from functools import lru_cache
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends
@@ -13,8 +14,13 @@ from pydantic import (
 )
 
 from rage.api.utils import get_filter, get_retriever
-from rage.llm_agents import Reranker, RerankerDeps, TextChunk
+from rage.llm_agents import Reranker, TextChunk
 from rage.retriever import Retriever, RetrieverItem
+
+
+@lru_cache(maxsize=1)
+def get_reranker() -> Reranker:
+    return Reranker()
 
 
 class Filter(BaseModel):
@@ -115,14 +121,15 @@ async def _rerank_items(
     query_text: str,
 ) -> list[RetrieverOutputItem]:
     indexed_items = dict(enumerate(items, start=1))
-    reranker_output = await Reranker().generate(
-        user_prompt=query_text,
-        agent_deps=RerankerDeps(
-            text_chunks=[
-                TextChunk(chunk_id=chunk_id, text=item.text)
-                for chunk_id, item in indexed_items.items()
-            ],
-            query_text=query_text,
+    text_chunks = [
+        TextChunk(chunk_id=chunk_id, text=item.text)
+        for chunk_id, item in indexed_items.items()
+    ]
+    reranker = get_reranker()
+    reranker_output = await reranker.generate(
+        user_prompt=(
+            f"**Query**: {query_text}\n\n"
+            f"**Text Chunks**: {[chunk.model_dump() for chunk in text_chunks]}"
         ),
     )
 
