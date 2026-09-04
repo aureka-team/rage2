@@ -1,34 +1,36 @@
-import xxhash
-import joblib
 import asyncio
-
-from typing import Any
-from pathlib import Path
 from abc import ABC, abstractmethod
+from pathlib import Path
+from typing import Any
 
-from tqdm import tqdm  # type: ignore
-from more_itertools import flatten
-
+import joblib
+import xxhash
 from aiocache import Cache, cached
 from aiocache.serializers import PickleSerializer
-
-from pydantic import BaseModel, StrictStr, Field
+from more_itertools import flatten
+from pydantic import BaseModel, Field, StrictStr
+from tqdm import tqdm
 
 from rage.config import config
 
 
 def get_cache_key(
     func: Any,
-    _self: Any,
-    *args: Any,
-    **kwargs: Any,
+    loader: Any,
+    source_path: str | None = None,
 ) -> str:
+    source_hash = (
+        joblib.hash(Path(source_path).read_bytes())
+        if source_path is not None
+        else None
+    )
     cache_key = joblib.hash(
         (
             func.__module__,
             func.__qualname__,
-            args,
-            kwargs,
+            loader.__class__.__module__,
+            loader.__class__.__qualname__,
+            source_hash,
         )
     )
 
@@ -58,9 +60,9 @@ class TextLoader(ABC):
 
     @cached(
         cache=Cache.REDIS,
-        endpoint=config.redis_host,
-        port=config.redis_port,
-        db=config.redis_db,
+        endpoint=config.rage_redis_host,
+        port=config.rage_redis_port,
+        db=config.rage_redis_db,
         serializer=PickleSerializer(),
         key_builder=get_cache_key,
         noself=True,
@@ -98,7 +100,9 @@ class TextLoader(ABC):
                         "metadata": doc.metadata
                         | {
                             "document_index": idx,
-                            "document_id": xxhash.xxh64(doc.text).hexdigest(),
+                            "document_id": xxhash.xxh64(
+                                doc.text.encode("utf-8")
+                            ).hexdigest(),
                             "file_name": file_name,
                         }
                     }
@@ -111,7 +115,7 @@ class TextLoader(ABC):
         source_paths: list[str],
         cached_load: bool = False,
     ) -> list[Document]:
-        with tqdm(  # type: ignore
+        with tqdm(
             total=len(source_paths),
             ascii=" ##",
             colour="#808080",
@@ -128,4 +132,4 @@ class TextLoader(ABC):
                     for source_path in source_paths
                 ]
 
-            return list(flatten((t.result() for t in tasks)))
+            return list(flatten(t.result() for t in tasks))

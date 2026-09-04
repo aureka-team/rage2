@@ -1,30 +1,33 @@
-from uuid import uuid4
 from functools import lru_cache
+from uuid import uuid4
 
-from rich.console import Console
-from pydantic import (
-    BaseModel,
-    StrictStr,
-    NonNegativeFloat,
-    StrictFloat,
-    StrictInt,
-)
-
-from qdrant_client import QdrantClient, AsyncQdrantClient, models
-from qdrant_client.conversions.common_types import PointId
-
+from langchain_classic.embeddings import CacheBackedEmbeddings
 from langchain_classic.storage import LocalFileStore
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
-from langchain_classic.embeddings import CacheBackedEmbeddings
-
-from langchain_qdrant import QdrantVectorStore, FastEmbedSparse, RetrievalMode
+from langchain_qdrant import FastEmbedSparse, QdrantVectorStore, RetrievalMode
+from pydantic import (
+    BaseModel,
+    NonNegativeFloat,
+    NonNegativeInt,
+    StrictFloat,
+    StrictInt,
+    StrictStr,
+)
+from qdrant_client import AsyncQdrantClient, QdrantClient, models
+from qdrant_client.conversions.common_types import PointId
+from rich.console import Console
 
 from rage.config.config import config
 from rage.meta.interfaces import TextChunk
 
-
 console = Console()
+
+PAYLOAD_INDEXES = {
+    "metadata.chunk_id": models.PayloadSchemaType.KEYWORD,
+    "metadata.document_id": models.PayloadSchemaType.KEYWORD,
+    "metadata.chunk_index": models.PayloadSchemaType.INTEGER,
+}
 
 
 class RetrieverItem(BaseModel):
@@ -66,15 +69,15 @@ class Retriever:
         )
 
         self.qadrant_client = QdrantClient(
-            url=config.qdrant_host,
-            port=config.qdrant_port,
-            grpc_port=config.qdrant_grpc_port,
+            url=config.rage_qdrant_host,
+            port=config.rage_qdrant_port,
+            grpc_port=config.rage_qdrant_grpc_port,
         )
 
         self.qadrant_async_client = AsyncQdrantClient(
-            url=config.qdrant_host,
-            port=config.qdrant_port,
-            grpc_port=config.qdrant_grpc_port,
+            url=config.rage_qdrant_host,
+            port=config.rage_qdrant_port,
+            grpc_port=config.rage_qdrant_grpc_port,
         )
 
     def _get_dense_embeddings(
@@ -99,9 +102,10 @@ class Retriever:
             ),
             namespace=dense_embeddings.model,  # type: ignore
             query_embedding_cache=query_embedding_cache,
+            key_encoder="sha256",
         )
 
-    @lru_cache()
+    @lru_cache(maxsize=1)
     def _get_dense_vector_store(
         self,
         collection_name: str,
@@ -114,7 +118,7 @@ class Retriever:
             vector_name="dense",
         )
 
-    @lru_cache()
+    @lru_cache(maxsize=1)
     def _get_hybrid_vector_store(
         self,
         collection_name: str,
@@ -129,7 +133,7 @@ class Retriever:
             sparse_vector_name="sparse",
         )
 
-    @lru_cache()
+    @lru_cache(maxsize=1)
     def _get_sparse_vector_store(
         self,
         collection_name: str,
@@ -189,7 +193,7 @@ class Retriever:
         lg_documents = [
             Document(
                 page_content=tc.text,
-                metadata=tc.metadata,
+                metadata=tc.metadata | {"num_tokens": tc.num_tokens},
             )
             for tc in text_chunks
         ]
@@ -317,6 +321,89 @@ class Retriever:
 
         return self._parse_results(results=results)
 
+    async def get_text_chunk(
+        self,
+        collection_name: str,
+        metadata_key: str,
+        metadata_value: str | int | bool,
+    ) -> RetrieverItem | None:
+        records = await self.scroll(
+            collection_name=collection_name,
+            limit=1,
+            scroll_filter=models.Filter(
+                must=[
+                    models.FieldCondition(
+                        key=metadata_key,
+                        match=models.MatchValue(value=metadata_value),
+                    )
+                ]
+            ),
+        )
+
+        record = next(iter(records), None)
+        if record is None or record.payload is None:
+            return None
+
+        return RetrieverItem(
+            text=record.payload["page_content"],
+            metadata=record.payload["metadata"],
+        )
+
+    async def get_neighboring_text_chunks(
+        self,
+        collection_name: str,
+        chunk_id: str,
+        before: NonNegativeInt = 1,
+        after: NonNegativeInt = 1,
+    ) -> list[RetrieverItem]:
+        center = await self.get_text_chunk(
+            collection_name=collection_name,
+            metadata_key="metadata.chunk_id",
+            metadata_value=chunk_id,
+        )
+
+        if center is None:
+            return []
+
+        if before == 0 and after == 0:
+            return [center]
+
+        document_id = center.metadata.get("document_id")
+        chunk_index = center.metadata.get("chunk_index")
+        if not isinstance(document_id, str) or not isinstance(chunk_index, int):
+            return []
+
+        records = await self.scroll(
+            collection_name=collection_name,
+            limit=before + after + 1,
+            scroll_filter=models.Filter(
+                must=[
+                    models.FieldCondition(
+                        key="metadata.document_id",
+                        match=models.MatchValue(value=document_id),
+                    ),
+                    models.FieldCondition(
+                        key="metadata.chunk_index",
+                        range=models.Range(
+                            gte=max(1, chunk_index - before),
+                            lte=chunk_index + after,
+                        ),
+                    ),
+                ]
+            ),
+        )
+
+        items = [
+            RetrieverItem(
+                text=record.payload["page_content"],
+                metadata=record.payload["metadata"],
+            )
+            for record in records
+            if record.payload is not None
+        ]
+
+        return sorted(items, key=lambda item: item.metadata["chunk_index"])
+
     async def scroll(
         self,
         collection_name: str,
@@ -401,6 +488,20 @@ class Retriever:
             field_name=field_name,
             field_schema=field_type,
         )
+
+    async def ensure_payload_indexes(self, collection_name: str) -> None:
+        collection_info = await self.qadrant_async_client.get_collection(
+            collection_name=collection_name
+        )
+        existing_indexes = set(collection_info.payload_schema)
+
+        for field_name, field_type in PAYLOAD_INDEXES.items():
+            if field_name not in existing_indexes:
+                await self.qadrant_async_client.create_payload_index(
+                    collection_name=collection_name,
+                    field_name=field_name,
+                    field_schema=field_type,
+                )
 
     # TODO: score <= 1.0
     async def dense_search_weighted(

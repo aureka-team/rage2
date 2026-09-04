@@ -24,4 +24,7 @@ include = ["rage*"]
 [tool.setuptools.dynamic]
 dependencies = { file = ["requirements.txt"] }
 
+[tool.setuptools.package-data]
+"rage" = ["llm_agents/**/*.md"]
+
 [tool.setuptools_scm]
