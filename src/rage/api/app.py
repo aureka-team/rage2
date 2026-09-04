@@ -11,7 +11,9 @@ from rage.api.routers import (
     retrieve_router,
 )
 
-app = FastAPI()
+# FIXME strict_content_type=False must be removed in the futre.
+app = FastAPI(strict_content_type=False)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
