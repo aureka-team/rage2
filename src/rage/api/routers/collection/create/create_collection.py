@@ -6,6 +6,7 @@ from tempfile import TemporaryDirectory
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
+from joblib import hash
 from pydantic import (
     BaseModel,
     Field,
@@ -142,8 +143,9 @@ def _decode_file(collection_file: CollectionFile) -> bytes:
 async def _load_file(
     collection_file: CollectionFile,
     temporary_directory: str,
-) -> list[Document]:
+) -> tuple[list[Document], str]:
     file_bytes = _decode_file(collection_file)
+    file_md5 = hash(file_bytes)
     file_extension = mimetypes.guess_extension(collection_file.file_type)
     assert file_extension is not None
     file_extension = file_extension.removeprefix(".")
@@ -159,14 +161,17 @@ async def _load_file(
         cached_load=True,
     )
 
-    return [
-        Document(
-            text=document.text,
-            metadata=document.metadata
-            | {"document_name": collection_file.file_name},
-        )
-        for document in documents
-    ]
+    return (
+        [
+            Document(
+                text=document.text,
+                metadata=document.metadata
+                | {"document_name": collection_file.file_name},
+            )
+            for document in documents
+        ],
+        file_md5,
+    )
 
 
 collection_create_router = APIRouter()
@@ -202,11 +207,12 @@ async def create_collection(
         await remove_collection_metadata(retriever, request.name)
 
     with TemporaryDirectory() as temporary_directory:
-        document_groups = [
+        loaded_files = [
             await _load_file(item, temporary_directory)
             for item in request.collection_files
         ]
 
+    document_groups, files_md5 = zip(*loaded_files, strict=True)
     documents = [document for group in document_groups for document in group]
     chunks = MarkdownSplitter().split_documents(documents)
     collection_documents = [item.file_name for item in request.collection_files]
@@ -217,6 +223,7 @@ async def create_collection(
         collection_name=request.name,
         language=request.language,
         documents=collection_documents,
+        files_md5=list(files_md5),
     )
     return CreateCollectionOutput(
         collection_name=request.name,

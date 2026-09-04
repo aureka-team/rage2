@@ -15,6 +15,7 @@ async def set_collection_metadata(
     collection_name: str,
     language: str,
     documents: list[str],
+    files_md5: list[str],
 ) -> None:
     if not await retriever.qadrant_async_client.collection_exists(
         config.collection_metadata
@@ -37,6 +38,7 @@ async def set_collection_metadata(
                     "name": collection_name,
                     "language": language,
                     "documents": documents,
+                    "files_md5": files_md5,
                 },
             )
         ],
