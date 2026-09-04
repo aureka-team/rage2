@@ -1,5 +1,6 @@
 import asyncio
 import json
+import uuid
 from typing import Literal
 
 from pydantic import BaseModel, NonNegativeFloat, StrictStr
@@ -11,6 +12,7 @@ class DocumentMetadata(BaseModel):
     start: NonNegativeFloat | None = None
     end: NonNegativeFloat | None = None
     speaker: StrictStr | None = None
+    source_id: uuid.UUID | None = None
     document_id: StrictStr | None = None
     document_type: Literal["transcription", "annotation"] | None = None
     block_id: StrictStr | None = None

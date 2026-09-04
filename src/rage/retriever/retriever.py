@@ -23,6 +23,12 @@ from rage.meta.interfaces import TextChunk
 
 console = Console()
 
+PAYLOAD_INDEXES = {
+    "metadata.chunk_id": models.PayloadSchemaType.KEYWORD,
+    "metadata.document_id": models.PayloadSchemaType.KEYWORD,
+    "metadata.chunk_index": models.PayloadSchemaType.INTEGER,
+}
+
 
 class RetrieverItem(BaseModel):
     text: StrictStr
@@ -482,6 +488,20 @@ class Retriever:
             field_name=field_name,
             field_schema=field_type,
         )
+
+    async def ensure_payload_indexes(self, collection_name: str) -> None:
+        collection_info = await self.qadrant_async_client.get_collection(
+            collection_name=collection_name
+        )
+        existing_indexes = set(collection_info.payload_schema)
+
+        for field_name, field_type in PAYLOAD_INDEXES.items():
+            if field_name not in existing_indexes:
+                await self.qadrant_async_client.create_payload_index(
+                    collection_name=collection_name,
+                    field_name=field_name,
+                    field_schema=field_type,
+                )
 
     # TODO: score <= 1.0
     async def dense_search_weighted(

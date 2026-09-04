@@ -194,6 +194,8 @@ async def create_collection(
         request.name
     )
     if exists and not request.overwrite:
+        await retriever.ensure_payload_indexes(request.name)
+
         return CreateCollectionOutput(
             collection_name=request.name,
             collection_language=request.language,
@@ -217,6 +219,7 @@ async def create_collection(
     chunks = MarkdownSplitter().split_documents(documents)
     collection_documents = [item.file_name for item in request.collection_files]
     await retriever.create_collection(request.name)
+    await retriever.ensure_payload_indexes(request.name)
     await retriever.insert_text_chunks(request.name, chunks)
     await set_collection_metadata(
         retriever=retriever,
