@@ -63,6 +63,8 @@ class TextLoader(ABC):
         endpoint=config.rage_redis_host,
         port=config.rage_redis_port,
         db=config.rage_redis_db,
+        password=config.rage_redis_password,
+        connection_pool_kwargs={"username": config.rage_redis_username},
         serializer=PickleSerializer(),
         key_builder=get_cache_key,
         noself=True,

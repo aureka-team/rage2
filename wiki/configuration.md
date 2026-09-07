@@ -16,9 +16,12 @@ tags:
 | `RAGE_REDIS_HOST` | Redis host. | `rage-redis` |
 | `RAGE_REDIS_PORT` | Redis port. | `6379` |
 | `RAGE_REDIS_DB` | Redis database. | `0` |
+| `RAGE_REDIS_USERNAME` | Redis ACL username. | None |
+| `RAGE_REDIS_PASSWORD` | Redis authentication password. | None |
 | `RAGE_QDRANT_HOST` | Qdrant host. | `rage-qdrant` |
 | `RAGE_QDRANT_PORT` | Qdrant HTTP port. | `6333` |
 | `RAGE_QDRANT_GRPC_PORT` | Qdrant gRPC port. | `6334` |
+| `RAGE_QDRANT_API_KEY` | Qdrant API key. | None |
 | `DENSE_EMBED_DOC_CACHE_PATH` | Document embedding cache directory. | `/resources/cache/embeddings/documents` |
 | `DENSE_EMBED_QUERY_CACHE_PATH` | Query embedding cache directory. | `/resources/cache/embeddings/queries` |
 | `FAST_EMBED_SPARSE_CACHE` | Sparse embedding model cache directory. | `/resources/cache/fes` |

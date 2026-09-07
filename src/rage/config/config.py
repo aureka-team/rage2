@@ -8,10 +8,13 @@ class Config(BaseSettings):
     rage_redis_host: StrictStr = "rage-redis"
     rage_redis_port: StrictInt = 6379
     rage_redis_db: StrictInt = 0
+    rage_redis_username: StrictStr | None = None
+    rage_redis_password: StrictStr | None = None
 
     rage_qdrant_host: StrictStr = "rage-qdrant"
     rage_qdrant_port: StrictInt = 6333
     rage_qdrant_grpc_port: StrictInt = 6334
+    rage_qdrant_api_key: StrictStr | None = None
 
     dense_embed_doc_cache_path: StrictStr = (
         "/resources/cache/embeddings/documents"

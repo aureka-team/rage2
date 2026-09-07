@@ -72,12 +72,14 @@ class Retriever:
             url=config.rage_qdrant_host,
             port=config.rage_qdrant_port,
             grpc_port=config.rage_qdrant_grpc_port,
+            api_key=config.rage_qdrant_api_key,
         )
 
         self.qadrant_async_client = AsyncQdrantClient(
             url=config.rage_qdrant_host,
             port=config.rage_qdrant_port,
             grpc_port=config.rage_qdrant_grpc_port,
+            api_key=config.rage_qdrant_api_key,
         )
 
     def _get_dense_embeddings(
