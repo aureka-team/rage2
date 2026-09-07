@@ -1,4 +1,4 @@
-from rage.meta.interfaces import TextSplitter, Document, TextChunk
+from rage.meta.interfaces import Document, TextChunk, TextSplitter
 
 
 class DocumentSplitter(TextSplitter):

@@ -1,11 +1,12 @@
-from typing import Literal
 from functools import lru_cache
+from typing import Literal
+
 from langchain_openai import OpenAIEmbeddings
 
 from rage.embeddings import IonosEmbeddings
 
 
-@lru_cache()
+@lru_cache(maxsize=1)
 def get_openai_embeddings(
     model: str = "text-embedding-3-large",
     dimensions: int = 1024,
@@ -16,7 +17,7 @@ def get_openai_embeddings(
     )
 
 
-@lru_cache()
+@lru_cache(maxsize=1)
 def get_ionos_embeddings(
     model: Literal[
         "BAAI/bge-large-en-v1.5",

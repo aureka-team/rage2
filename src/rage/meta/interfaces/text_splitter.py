@@ -1,7 +1,7 @@
-import xxhash
-import tiktoken
-
 from abc import ABC, abstractmethod
+
+import tiktoken
+import xxhash
 from pydantic import NonNegativeInt
 
 from .text_loader import Document
@@ -35,7 +35,9 @@ class TextSplitter(ABC):
                 text=tc.text,
                 metadata=tc.metadata
                 | {
-                    "chunk_id": xxhash.xxh64(tc.text).hexdigest(),
+                    "chunk_id": xxhash.xxh64(
+                        tc.text.encode("utf-8")
+                    ).hexdigest(),
                     "chunk_index": idx,
                 },
                 num_tokens=tc.num_tokens,

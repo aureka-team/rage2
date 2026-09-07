@@ -1,9 +1,9 @@
-ARG UV_VERSION=0.11.7
+ARG UV_VERSION=0.12.8
 FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv_source
 
-FROM ubuntu:plucky
+FROM ubuntu:resolute
 
-ARG PYTHON_VERSION=3.13
+ARG PYTHON_VERSION=3.14
 RUN --mount=type=cache,target=/var/cache/apt \
     --mount=target=/var/cache/apt,type=cache,sharing=locked \
     apt-get update && apt-get install -y --no-install-recommends \

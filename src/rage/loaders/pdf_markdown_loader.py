@@ -1,9 +1,9 @@
 import asyncio
+
 import pymupdf4llm
-
 from rich.console import Console
-from rage.meta.interfaces import TextLoader, Document
 
+from rage.meta.interfaces import Document, TextLoader
 
 console = Console()
 
