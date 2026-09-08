@@ -17,7 +17,7 @@ concurrency:
 
 env:
     ECR_REGISTRY: 696036763958.dkr.ecr.eu-central-1.amazonaws.com
-    ECR_REPOSITORY: aureka-app/rage-api
+    ECR_REPOSITORY: rage-api
 
 jobs:
     build-push:
