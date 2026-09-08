@@ -1,8 +1,9 @@
 {
     "name": "rage",
-    "initializeCommand": "make core-build",
+    "initializeCommand": "make devcontainer-build",
     "dockerComposeFile": "../docker-compose.yml",
     "service": "rage-devcontainer",
+    "runServices": ["rage-devcontainer"],
     "workspaceFolder": "/workspace",
     "customizations": {
         "vscode": {
