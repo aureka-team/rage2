@@ -42,6 +42,14 @@ The workflow builds the wheel, creates the GitHub release for the tag, and
 uploads the wheel to both the tag release and the permanent `index` release used
 by `uv`.
 
+Pushing application changes to `main` runs
+[`docker-ecr.yml`](../.github/workflows/docker-ecr.yml). The workflow builds the
+`api` target from the shared [`Dockerfile`](../Dockerfile) and
+pushes it to
+`696036763958.dkr.ecr.eu-central-1.amazonaws.com/aureka-app/rage-api`. Image tags
+use `v<short-sha>-<workflow-run-number>` so Flux can select the highest build
+number.
+
 ## License
 
 RAGE is licensed under the terms of the [`LICENSE`](../LICENSE) file.

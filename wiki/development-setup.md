@@ -10,6 +10,11 @@ tags:
 
 # Development setup
 
+The shared [`Dockerfile`](../Dockerfile) defines `core`, `api`,
+and `devcontainer` build targets so local development and the deployed API use
+the same operating system, Python runtime, system packages, and Python
+dependencies.
+
 Run the project inside the devcontainer.
 
 Start Qdrant:
