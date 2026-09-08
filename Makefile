@@ -8,11 +8,11 @@ core-run: core-build
 	docker compose run --rm rage-core
 
 
-devcontainer-build: core-build
+devcontainer-build:
 	docker compose build rage-devcontainer
 
 
-api-build: core-build
+api-build:
 	docker compose build rage-api
 
 api-run: api-build

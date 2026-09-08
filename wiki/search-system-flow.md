@@ -39,8 +39,10 @@ Lumos -> RAGE POST /rage/collection/create
 ```
 
 `POST /rage/retriever/retrieve` searches the transcription, annotation, and
-metadata collections. Lumos creates, replaces, or removes annotation and
-metadata collections as its application data changes.
+metadata collections. When `enable_llm_response` is true, RAGE reranks the
+retrieved chunks and uses the relevant chunks to generate `llm_response`.
+Lumos creates, replaces, or removes annotation and metadata collections as its
+application data changes.
 
 ## Lumos to Diagon to RAGE
 
