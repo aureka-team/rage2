@@ -14,13 +14,18 @@ from pydantic import (
 )
 
 from rage.api.utils import get_filter, get_retriever
-from rage.llm_agents import Reranker, TextChunk
+from rage.llm_agents import Reranker, RetrievalAssistant, TextChunk
 from rage.retriever import Retriever, RetrieverItem
 
 
 @lru_cache(maxsize=1)
 def get_reranker() -> Reranker:
     return Reranker()
+
+
+@lru_cache(maxsize=1)
+def get_retrieval_assistant() -> RetrievalAssistant:
+    return RetrievalAssistant()
 
 
 class Filter(BaseModel):
@@ -46,6 +51,10 @@ class RetrieverInput(BaseModel):
     enable_reranker: StrictBool = Field(
         default=False,
         description="Whether to select and reorder retrieved items with the reranker.",
+    )
+    enable_llm_response: StrictBool = Field(
+        default=False,
+        description="Whether to answer the query using the relevant retrieved items.",
     )
     min_similarity: StrictFloat = Field(
         default=0.3,
@@ -88,6 +97,10 @@ class RetrieverOutput(BaseModel):
     relevant_items: list[RetrieverOutputItem] = Field(
         default_factory=list,
         description="Relevant text chunks after optional post-processing.",
+    )
+    llm_response: StrictStr | None = Field(
+        default=None,
+        description="Answer generated from the relevant items when enabled.",
     )
     error: StrictBool = Field(
         default=False,
@@ -138,6 +151,22 @@ async def _rerank_items(
         for chunk_id in reranker_output.relevant_chunk_ids
         if chunk_id in indexed_items
     ]
+
+
+async def _generate_llm_response(
+    items: list[RetrieverOutputItem],
+    query_text: str,
+) -> str | None:
+    retrieval_assistant = get_retrieval_assistant()
+    retrieval_assistant_output = await retrieval_assistant.generate(
+        user_prompt=(
+            f"**Query**: {query_text}\n\n"
+            f"**Relevant Text Chunks**: "
+            f"{[{'text': item.text} for item in items]}"
+        ),
+    )
+
+    return retrieval_assistant_output.response
 
 
 retrieve_router = APIRouter()
@@ -223,11 +252,19 @@ async def retrieve(
         reverse=True,
     )[: retrieve_input.retriever_limit]
     relevant_items = items
-    if retrieve_input.enable_reranker:
+    if retrieve_input.enable_reranker or retrieve_input.enable_llm_response:
         relevant_items = await _rerank_items(items, retrieve_input.query_text)
+
+    llm_response = None
+    if retrieve_input.enable_llm_response and relevant_items:
+        llm_response = await _generate_llm_response(
+            relevant_items,
+            retrieve_input.query_text,
+        )
 
     return RetrieverOutput(
         retriever_items=items,
         relevant_items=relevant_items,
+        llm_response=llm_response,
         invalid_collections=invalid_collections,
     )
