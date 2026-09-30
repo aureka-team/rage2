@@ -1,4 +1,4 @@
-ARG UV_VERSION=0.12.8
+ARG UV_VERSION=0.12.21
 FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv_source
 
 FROM ubuntu:resolute AS core
@@ -32,7 +32,6 @@ COPY --from=uv_source /uv /uvx /bin/
 
 WORKDIR /tmp
 
-COPY uv.toml .
 COPY requirements.txt .
 RUN --mount=type=cache,target=/root/.cache \
     uv pip install -r requirements.txt
