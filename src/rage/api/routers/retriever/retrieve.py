@@ -104,11 +104,11 @@ class RetrieverOutput(BaseModel):
     )
     error: StrictBool = Field(
         default=False,
-        description="Whether retrieval failed because no requested collection exists.",
+        description="Whether any requested collection does not exist.",
     )
     invalid_collections: list[StrictStr] = Field(
         default_factory=list,
-        description="Requested collection names that do not exist.",
+        description="All nonexistent collection names, using the exact request identifiers in request order.",
     )
 
 
@@ -178,7 +178,9 @@ retrieve_router = APIRouter()
     summary="Retrieve text chunks",
     description=(
         "Searches one or more Qdrant collections, combines their results by score, "
-        "and reports collection names that could not be found."
+        "and reports every nonexistent collection in request order. Missing "
+        "collections set error=true; existing collections are still searched. "
+        "An empty result with error=false means all collections exist."
     ),
 )
 async def retrieve(
@@ -266,5 +268,6 @@ async def retrieve(
         retriever_items=items,
         relevant_items=relevant_items,
         llm_response=llm_response,
+        error=bool(invalid_collections),
         invalid_collections=invalid_collections,
     )

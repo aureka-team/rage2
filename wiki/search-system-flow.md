@@ -41,6 +41,12 @@ Lumos -> RAGE POST /rage/collection/create
 `POST /rage/retriever/retrieve` searches the transcription, annotation, and
 metadata collections. When `enable_llm_response` is true, RAGE reranks the
 retrieved chunks and uses the relevant chunks to generate `llm_response`.
+The response lists every missing collection in `invalid_collections`, preserving
+each identifier and its request order. `error` is true whenever that list is
+nonempty. RAGE still returns search results from existing collections in a mixed
+request. When `error` is false, an empty `retriever_items` list means the
+requested collections exist but the search found no matches.
+
 Lumos creates, replaces, or removes annotation and metadata collections as its
 application data changes.
 
