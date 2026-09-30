@@ -1,11 +1,11 @@
 from rage.llm_agents.reranker.reranker import (
-    Reranker,
     RerankerOutput,
     TextChunk,
+    agent,
 )
 
 __all__ = [
-    "Reranker",
     "RerankerOutput",
     "TextChunk",
+    "agent",
 ]

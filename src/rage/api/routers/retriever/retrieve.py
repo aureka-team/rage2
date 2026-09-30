@@ -1,4 +1,3 @@
-from functools import lru_cache
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends
@@ -14,18 +13,8 @@ from pydantic import (
 )
 
 from rage.api.utils import get_filter, get_retriever
-from rage.llm_agents import Reranker, RetrievalAssistant, TextChunk
+from rage.llm_agents import TextChunk, reranker_agent, retrieval_assistant_agent
 from rage.retriever import Retriever, RetrieverItem
-
-
-@lru_cache(maxsize=1)
-def get_reranker() -> Reranker:
-    return Reranker()
-
-
-@lru_cache(maxsize=1)
-def get_retrieval_assistant() -> RetrievalAssistant:
-    return RetrievalAssistant()
 
 
 class Filter(BaseModel):
@@ -138,9 +127,8 @@ async def _rerank_items(
         TextChunk(chunk_id=chunk_id, text=item.text)
         for chunk_id, item in indexed_items.items()
     ]
-    reranker = get_reranker()
-    reranker_output = await reranker.generate(
-        user_prompt=(
+    reranker_result = await reranker_agent.run(
+        (
             f"**Query**: {query_text}\n\n"
             f"**Text Chunks**: {[chunk.model_dump() for chunk in text_chunks]}"
         ),
@@ -148,7 +136,7 @@ async def _rerank_items(
 
     return [
         indexed_items[chunk_id]
-        for chunk_id in reranker_output.relevant_chunk_ids
+        for chunk_id in reranker_result.output.relevant_chunk_ids
         if chunk_id in indexed_items
     ]
 
@@ -157,16 +145,15 @@ async def _generate_llm_response(
     items: list[RetrieverOutputItem],
     query_text: str,
 ) -> str | None:
-    retrieval_assistant = get_retrieval_assistant()
-    retrieval_assistant_output = await retrieval_assistant.generate(
-        user_prompt=(
+    retrieval_assistant_result = await retrieval_assistant_agent.run(
+        (
             f"**Query**: {query_text}\n\n"
             f"**Relevant Text Chunks**: "
             f"{[{'text': item.text} for item in items]}"
         ),
     )
 
-    return retrieval_assistant_output.response
+    return retrieval_assistant_result.output.response
 
 
 retrieve_router = APIRouter()

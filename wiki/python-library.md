@@ -18,9 +18,9 @@ search. It:
 - supports Qdrant filters, score thresholds, scrolling, deletion, and payload
   indexes.
 
-`rage.llm_agents.retrieval_assistant.RetrievalAssistant` answers a query using
+`rage.llm_agents.retrieval_assistant.agent` is a Pydantic AI agent that answers a query using
 only the relevant text chunks. The caller supplies both the query and serialized
-chunks in `user_prompt`; its structured output contains `response=None` when
+chunks to `agent.run`; its structured output contains `response=None` when
 those chunks do not support an answer.
 
 ## Create and search a collection
@@ -83,7 +83,8 @@ Current starting points include:
 
 - `rage.retriever.retriever.Retriever`
 - `rage.retriever.retriever.WeightedMetadataItem`
-- `rage.llm_agents.retrieval_assistant.RetrievalAssistant`
+- `rage.llm_agents.reranker.agent`
+- `rage.llm_agents.retrieval_assistant.agent`
 - `rage.llm_agents.retrieval_assistant.RetrievalAssistantOutput`
 - `rage.meta.interfaces.TextLoader`
 - `rage.meta.interfaces.TextSplitter`
