@@ -158,7 +158,7 @@ async def _load_file(
     file_path.write_bytes(file_bytes)
     documents = await FILE_LOADERS[file_extension]().load(
         source_path=str(file_path),
-        cached_load=True,
+        cached_load=False,
     )
 
     return (

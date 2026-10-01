@@ -4,7 +4,7 @@ langchain-openai>=1.6.7
 pydantic>=2.13.5
 pydantic-ai>=2.52.0
 pydantic-settings>=2.15.0
-pydantic-extra-types[pycountry]>=2.11.2
+pydantic-extra-types[pycountry]>=2.11.1
 fastapi[standard]>=0.142.2
 
 rich>=15.0.0
