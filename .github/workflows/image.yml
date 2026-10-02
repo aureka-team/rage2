@@ -1,0 +1,69 @@
+name: Build tagged images
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: image-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+      channel: ${{ steps.tag.outputs.channel }}
+      package_version: ${{ steps.tag.outputs.package_version }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check release scripts
+        run: bash .github/scripts/test-release-scripts.sh
+      - name: Validate release tag
+        id: tag
+        run: bash .github/scripts/tag-version.sh "$GITHUB_REF_NAME"
+
+  test:
+    needs: version
+    uses: ./.github/workflows/package-check.yml
+    with:
+      package-version: ${{ needs.version.outputs.package_version }}
+
+  build:
+    needs: [version, test]
+    runs-on: ubuntu-latest
+    env:
+      ECR_REGISTRY: ${{ vars.ECR_REGISTRY || '696036763958.dkr.ecr.eu-central-1.amazonaws.com' }}
+      ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY || 'rage-api' }}
+      AWS_REGION: ${{ vars.AWS_REGION || 'eu-central-1' }}
+      IMAGE_TAG: ${{ needs.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::696036763958:role/github-ecr-push-role-5466eb0
+          aws-region: ${{ env.AWS_REGION }}
+      - uses: aws-actions/amazon-ecr-login@v2
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Check existing image
+        id: image
+        run: bash .github/scripts/ecr-image.sh "$ECR_REPOSITORY" "$IMAGE_TAG"
+
+      - name: Build and push image
+        if: ${{ steps.image.outputs.exists != 'true' }}
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          target: api
+          push: true
+          tags: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ needs.version.outputs.tag }}
+          labels: org.opencontainers.image.revision=${{ github.sha }}
+          build-args: |
+            SETUPTOOLS_SCM_PRETEND_VERSION=${{ needs.version.outputs.package_version }}

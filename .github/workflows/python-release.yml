@@ -1,17 +1,23 @@
-name: Build and Release
+name: Publish Python package release
 
 on:
-    push:
-        tags:
-            - "v*"
+    release:
+        types: [published]
 
 jobs:
     build-and-release:
+        if: ${{ !github.event.release.prerelease && !github.event.release.draft && startsWith(github.event.release.tag_name, 'v') }}
         permissions:
             contents: write
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
+
+            - name: Validate stable release tag
+              id: tag
+              env:
+                  RELEASE_TAG: ${{ github.event.release.tag_name }}
+              run: bash .github/scripts/tag-version.sh "$RELEASE_TAG" stable
 
             - name: Set up Python
               uses: actions/setup-python@v5
@@ -24,24 +30,17 @@ jobs:
                   pip install build wheel
 
             - name: Build distributions
+              env:
+                  SETUPTOOLS_SCM_PRETEND_VERSION: ${{ steps.tag.outputs.package_version }}
               run: |
                   python -m build
                   ls -lh dist
 
-            - name: Create GitHub Release for this tag
-              id: create_release
+            - name: Upload wheels to the published release
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-                  tag: ${{ github.ref_name }}
-              run: |
-                  gh release create "$tag" \
-                    --repo="$GITHUB_REPOSITORY" \
-                    --title="${GITHUB_REPOSITORY#*/} ${tag#v}" \
-                    --generate-notes || true
-
-                  gh release upload "$tag" \
-                    --repo="$GITHUB_REPOSITORY" \
-                    ./dist/*.whl
+                  RELEASE_TAG: ${{ github.event.release.tag_name }}
+              run: gh release upload "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" ./dist/*.whl
 
             - name: Update permanent index release with all wheels
               env:
