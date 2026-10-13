@@ -41,6 +41,9 @@ WORKDIR /root
 
 FROM core AS api
 
+ARG SETUPTOOLS_SCM_PRETEND_VERSION
+ENV SETUPTOOLS_SCM_PRETEND_VERSION=${SETUPTOOLS_SCM_PRETEND_VERSION}
+
 COPY src /src/src
 COPY README.md requirements.txt pyproject.toml /src/
 RUN --mount=type=bind,source=.git,target=/src/.git \
