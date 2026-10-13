@@ -1,4 +1,4 @@
-ARG UV_VERSION=0.12.21
+ARG UV_VERSION=0.13.0
 FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv_source
 
 FROM ubuntu:resolute AS core
