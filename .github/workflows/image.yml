@@ -27,6 +27,17 @@ jobs:
         id: tag
         run: bash .github/scripts/tag-version.sh "$GITHUB_REF_NAME"
 
+      - name: Record image tag
+        run: printf '%s\n' "$GITHUB_REF_NAME" > "$RUNNER_TEMP/image-tag.txt"
+      - name: Upload image tag for deployment workflows
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-tag
+          path: ${{ runner.temp }}/image-tag.txt
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 7
+
   test:
     needs: version
     uses: ./.github/workflows/package-check.yml
