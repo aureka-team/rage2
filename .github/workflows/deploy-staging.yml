@@ -25,9 +25,9 @@ jobs:
       ECR_REGISTRY: ${{ vars.ECR_REGISTRY || '696036763958.dkr.ecr.eu-central-1.amazonaws.com' }}
       ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY || 'rage-api' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Download image tag
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: image-tag
           path: ${{ runner.temp }}/image-metadata
