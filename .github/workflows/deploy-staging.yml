@@ -1,0 +1,63 @@
+name: Deploy RC to staging EC2
+
+on:
+  workflow_run:
+    workflows: [Build tagged images]
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'eu-central-1' }}
+      ECR_REGISTRY: ${{ vars.ECR_REGISTRY || '696036763958.dkr.ecr.eu-central-1.amazonaws.com' }}
+      ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY || 'rage-api' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download image tag
+        uses: actions/download-artifact@v4
+        with:
+          name: image-tag
+          path: ${{ runner.temp }}/image-metadata
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Validate image tag and identify its channel
+        id: tag
+        run: |
+          RELEASE_TAG=$(cat "$RUNNER_TEMP/image-metadata/image-tag.txt")
+          bash .github/scripts/tag-version.sh "$RELEASE_TAG"
+
+      - name: Update Floo deployment
+        if: ${{ steps.tag.outputs.channel == 'rc' }}
+        uses: appleboy/ssh-action@master
+        env:
+          RAGE_API_IMAGE: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ steps.tag.outputs.tag }}
+        with:
+          host: ${{ vars.STAGING_SSH_HOST }}
+          username: ubuntu
+          key: ${{ secrets.STAGING_SSH_PRIVATE_KEY }}
+          envs: AWS_REGION,ECR_REGISTRY,RAGE_API_IMAGE
+          script: |
+            bash -se -o pipefail <<'DEPLOY'
+            cd ~/floo/staging
+            docker compose -f compose.rage.yml config --quiet
+            aws ecr get-login-password --region "$AWS_REGION" |
+              docker login --username AWS --password-stdin "$ECR_REGISTRY"
+            docker compose -f compose.rage.yml pull rage-api
+            docker compose -f compose.rage.yml up -d --wait --wait-timeout 180
+            printf 'RAGE_API_IMAGE=%s\n' "$RAGE_API_IMAGE" > .env.rage.image.tmp
+            mv .env.rage.image.tmp .env.rage.image
+            DEPLOY

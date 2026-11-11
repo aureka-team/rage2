@@ -35,7 +35,7 @@ Push a tag using one of the shared release formats:
 | Tag | Container image | Python package |
 | --- | --- | --- |
 | `vX.Y.Z-eks.N` | EKS candidate selected by Flux | No release |
-| `vX.Y.Z-rc.N` | RC image, without an EC2 deployment | No release |
+| `vX.Y.Z-rc.N` | RC image deployed to Floo staging after a successful build | No release |
 | `vX.Y.Z` | Stable image, without automatic deployment | Waits for GitHub Release publication |
 
 To publish an EKS candidate, create and push a tag:
@@ -55,6 +55,12 @@ shared [`Dockerfile`](../Dockerfile), and pushes it to
 tag. Reruns reuse an existing image. EKS tags map to `X.Y.Z.devN` inside the
 Python package; RC tags map to `X.Y.ZrcN`. The original tag remains the container
 tag. Pushes to `main` run package checks and do not publish container images.
+
+Push a `vX.Y.Z-rc.N` tag to deploy to Floo staging. After the image build
+succeeds, [the staging workflow](../.github/workflows/deploy-staging.yml)
+reads the tag from that build and rolls out the RAGE stack on EC2. Before
+the first RC, configure the staging SSH settings and provision the RAGE stack
+files, runtime credentials, and private network on the Floo host.
 
 To release the Python package, push a stable tag, wait for the image workflow to
 succeed, and publish a GitHub Release for that existing tag with pre-release
