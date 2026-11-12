@@ -53,11 +53,15 @@ jobs:
           script: |
             bash -se -o pipefail <<'DEPLOY'
             cd ~/floo/staging
-            docker compose -f compose.rage.yml config --quiet
+            docker compose --env-file .env.rage -f compose.rage.yml config --quiet
             aws ecr get-login-password --region "$AWS_REGION" |
               docker login --username AWS --password-stdin "$ECR_REGISTRY"
-            docker compose -f compose.rage.yml pull rage-api
-            docker compose -f compose.rage.yml up -d --wait --wait-timeout 180
-            printf 'RAGE_API_IMAGE=%s\n' "$RAGE_API_IMAGE" > .env.rage.image.tmp
-            mv .env.rage.image.tmp .env.rage.image
+            docker compose --env-file .env.rage -f compose.rage.yml pull rage-api
+            docker compose --env-file .env.rage -f compose.rage.yml up -d --wait --wait-timeout 180
+
+            temp_env=$(mktemp .env.rage.XXXXXX)
+            trap 'rm -f "$temp_env"' EXIT
+            awk '!/^[[:space:]]*(export[[:space:]]+)?RAGE_API_IMAGE([[:space:]]*[:=]|[[:space:]]*$)/' .env.rage > "$temp_env"
+            printf 'RAGE_API_IMAGE=%s\n' "$RAGE_API_IMAGE" >> "$temp_env"
+            mv "$temp_env" .env.rage
             DEPLOY
