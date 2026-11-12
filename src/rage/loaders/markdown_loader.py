@@ -1,17 +1,24 @@
 import asyncio
+from functools import lru_cache
+from threading import Lock
 
 from markitdown import MarkItDown
 
 from rage.meta.interfaces import Document, TextLoader
 
+_conversion_lock = Lock()
+
+
+@lru_cache(maxsize=1)
+def _get_markitdown() -> MarkItDown:
+    return MarkItDown()
+
 
 class MarkdownLoader(TextLoader):
-    def __init__(self):
-        super().__init__()
-        self.markitdown = MarkItDown()
-
     def _get_documents(self, source_path: str) -> list[Document]:
-        markdown = self.markitdown.convert(source=source_path)
+        with _conversion_lock:
+            markdown = _get_markitdown().convert(source=source_path)
+
         return [Document(text=markdown.markdown)]
 
     async def get_documents(

@@ -79,6 +79,11 @@ Use the interfaces in `rage.meta.interfaces` for custom implementations:
 
 ## Components
 
+`MarkdownLoader` reuses one lazily initialized `MarkItDown` converter per
+process across loader instances. Conversions run in worker threads and are
+serialized to avoid concurrent access to the shared converter. This avoids
+rebuilding converters and HTTP sessions for every text file during indexing.
+
 Current starting points include:
 
 - `rage.retriever.retriever.Retriever`
