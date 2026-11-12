@@ -47,6 +47,11 @@ nonempty. RAGE still returns search results from existing collections in a mixed
 request. When `error` is false, an empty `retriever_items` list means the
 requested collections exist but the search found no matches.
 
+For sparse BM25 search, each result includes `match_ranges` with half-open
+UTF-16 offsets into its original `text`. RAGE uses the active BM25 model's
+token IDs, so a query for `collection` can highlight `collective`.
+The field is null when match ranges are unavailable.
+
 Lumos creates, replaces, or removes annotation and metadata collections as its
 application data changes.
 
