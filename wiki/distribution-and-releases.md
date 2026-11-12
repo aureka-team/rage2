@@ -30,25 +30,38 @@ find-links = [
 
 ## Releases
 
-Pushing a Git tag matching `v*` runs
-[`python-release.yml`](../.github/workflows/python-release.yml).
+| Trigger | Outcome |
+| --- | --- |
+| Push `vX.Y.Z-rc.N` | Deploy the RC image to Floo staging |
+| Push `vX.Y.Z` | Deploy the stable image to EKS through Flux, starting at `v3.0.5` |
+| Publish a GitHub Release for `vX.Y.Z` | Publish the Python wheel |
 
-```bash
-git tag v<version>
-git push origin v<version>
-```
+[`image.yml`](../.github/workflows/image.yml) validates the tag, checks
+source compilation and package construction, builds the `api` target from the
+shared [`Dockerfile`](../Dockerfile), and pushes it to
+`696036763958.dkr.ecr.eu-central-1.amazonaws.com/rage-api` using the exact Git
+tag. Reruns reuse an existing image. RC tags map to `X.Y.ZrcN` inside the Python
+package. The original tag remains the container
+tag. Pushes to `main` run package checks and do not publish container images.
 
-The workflow builds the wheel, creates the GitHub release for the tag, and
-uploads the wheel to both the tag release and the permanent `index` release used
-by `uv`.
+Push a `vX.Y.Z-rc.N` tag to deploy to Floo staging. After the image build
+succeeds, [the staging workflow](../.github/workflows/deploy-staging.yml)
+reads the tag from that build and rolls out the RAGE stack on EC2. Before
+the first RC, configure the staging SSH settings and provision the RAGE stack
+files, runtime credentials, and private network on the Floo host.
 
-Pushing application changes to `main` runs
-[`docker-ecr.yml`](../.github/workflows/docker-ecr.yml). The workflow builds the
-`api` target from the shared [`Dockerfile`](../Dockerfile) and
-pushes it to
-`696036763958.dkr.ecr.eu-central-1.amazonaws.com/aureka-app/rage-api`. Image tags
-use `v<short-sha>-<workflow-run-number>` so Flux can select the highest build
-number.
+To deploy to EKS, push a stable tag and wait for the image workflow to
+succeed. Flux selects the highest eligible stable image in ECR.
+
+To release the Python package, publish a GitHub Release for that existing tag
+with pre-release disabled. [`python-release.yml`](../.github/workflows/python-release.yml) builds
+the wheel and uploads it to the published release and the permanent `index`
+release used by `uv`. It accepts only exact `vX.Y.Z` tags and does not create the
+version release itself.
+
+Confirm that the image and package workflows succeed. For the complete app
+deployment and EKS cutover procedure, see the
+[aureka deployment guide](https://github.com/aureka-team/gitops-aureka/blob/main/docs/deployments.md).
 
 ## License
 

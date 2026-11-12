@@ -1,10 +1,12 @@
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends
+from fastembed.sparse.bm25 import Bm25
 from pydantic import (
     BaseModel,
     Field,
     NonNegativeFloat,
+    NonNegativeInt,
     PositiveInt,
     StrictBool,
     StrictFloat,
@@ -15,6 +17,7 @@ from pydantic import (
 from rage.api.utils import get_filter, get_retriever
 from rage.llm_agents import TextChunk, reranker_agent, retrieval_assistant_agent
 from rage.retriever import Retriever, RetrieverItem
+from rage.utils.keyword_matches import keyword_match_ranges
 
 
 class Filter(BaseModel):
@@ -64,6 +67,10 @@ class RetrieverOutputItem(BaseModel):
         description="Name of the source document containing the text chunk."
     )
     text: StrictStr = Field(description="Retrieved text chunk.")
+    match_ranges: list[tuple[NonNegativeInt, NonNegativeInt]] | None = Field(
+        default=None,
+        description="Half-open UTF-16 offsets in text for BM25 matches.",
+    )
     document_metadata: dict = Field(
         default_factory=dict,
         description="Metadata stored with the source text chunk.",
@@ -240,6 +247,16 @@ async def retrieve(
         key=lambda item: item.score,
         reverse=True,
     )[: retrieve_input.retriever_limit]
+    if retrieve_input.search_mode == "sparse" and items:
+        model = retriever.sparse_embeddings._model.model
+        if isinstance(model, Bm25):
+            query_vector = next(model.query_embed(retrieve_input.query_text))
+            query_token_ids = set(query_vector.indices.tolist())
+            for item in items:
+                item.match_ranges = keyword_match_ranges(
+                    item.text, model, query_token_ids
+                )
+
     relevant_items = items
     if retrieve_input.enable_reranker or retrieve_input.enable_llm_response:
         relevant_items = await _rerank_items(items, retrieve_input.query_text)

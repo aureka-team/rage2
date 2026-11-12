@@ -1,4 +1,4 @@
-ARG UV_VERSION=0.12.21
+ARG UV_VERSION=0.13.0
 FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv_source
 
 FROM ubuntu:resolute AS core
@@ -40,6 +40,9 @@ RUN rm -rf /tmp/*
 WORKDIR /root
 
 FROM core AS api
+
+ARG SETUPTOOLS_SCM_PRETEND_VERSION
+ENV SETUPTOOLS_SCM_PRETEND_VERSION=${SETUPTOOLS_SCM_PRETEND_VERSION}
 
 COPY src /src/src
 COPY README.md requirements.txt pyproject.toml /src/

@@ -1,11 +1,11 @@
-langchain>=1.4.3
-langchain-openai>=1.6.7
+langchain>=1.4.5
+langchain-openai>=1.7.1
 
-pydantic>=2.13.5
-pydantic-ai>=2.52.0
+pydantic>=2.14.1
+pydantic-ai>=2.55.0
 pydantic-settings>=2.15.0
 pydantic-extra-types[pycountry]>=2.11.1
-fastapi[standard]>=0.142.2
+fastapi[standard]>=0.143.0
 
 rich>=15.0.0
 joblib>=1.6.0
@@ -16,9 +16,9 @@ pytest-asyncio>=1.4.0
 
 langchain-qdrant==1.1.0
 langchain-classic==1.0.8
-langchain-text-splitters==1.1.2
+langchain-text-splitters==1.1.3
 
-pypdf==6.19.0
+pypdf==6.20.1
 xxhash==4.0.1
 markitdown[docx]==0.1.8
 
@@ -26,5 +26,5 @@ pymupdf4llm==1.28.2
 pymupdf_layout==1.28.2
 
 tiktoken==0.14.0
-fastembed==0.8.1
+fastembed==0.9.0
 qdrant-client==1.19.1
