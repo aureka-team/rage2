@@ -1,5 +1,6 @@
 import asyncio
 from abc import ABC, abstractmethod
+from itertools import chain
 from pathlib import Path
 from typing import Any
 
@@ -7,7 +8,6 @@ import joblib
 import xxhash
 from aiocache import Cache, cached
 from aiocache.serializers import PickleSerializer
-from more_itertools import flatten
 from pydantic import BaseModel, Field, StrictStr
 from tqdm import tqdm
 
@@ -134,4 +134,4 @@ class TextLoader(ABC):
                     for source_path in source_paths
                 ]
 
-            return list(flatten(t.result() for t in tasks))
+            return list(chain.from_iterable(t.result() for t in tasks))

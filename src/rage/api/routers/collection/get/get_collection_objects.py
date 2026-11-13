@@ -12,6 +12,8 @@ from pydantic import (
 )
 from qdrant_client import models
 
+from rage.api.collection_metadata import get_collection_metadata
+from rage.api.shared_index import CONTENT_COLLECTION, generation_filter
 from rage.api.utils import get_filter, get_retriever
 from rage.retriever import Retriever
 
@@ -55,9 +57,7 @@ class GetCollectionObjectsInput(BaseModel):
 
 
 class CollectionObject(BaseModel):
-    name: StrictStr = Field(
-        description="Name of the collection containing the object."
-    )
+    name: StrictStr = Field(description="Name of the collection containing the object.")
     uuid: StrictStr = Field(
         description="Qdrant point identifier represented as a string."
     )
@@ -87,10 +87,8 @@ async def get_collection_objects(
     request: GetCollectionObjectsInput,
     retriever: Annotated[Retriever, Depends(get_retriever)],
 ) -> list[CollectionObject]:
-    exists = await retriever.qadrant_async_client.collection_exists(
-        request.collection_name
-    )
-    if not exists:
+    metadata = await get_collection_metadata(retriever, request.collection_name)
+    if metadata is None:
         return []
 
     order_by = None
@@ -101,18 +99,18 @@ async def get_collection_objects(
         )
 
     records = await retriever.scroll(
-        collection_name=request.collection_name,
+        collection_name=CONTENT_COLLECTION,
         limit=request.limit or 10,
-        scroll_filter=get_filter(request.filters),
+        scroll_filter=generation_filter(
+            [metadata["generation"]], get_filter(request.filters)
+        ),
         order_by=order_by,
     )
     return [
         CollectionObject(
             name=request.collection_name,
             uuid=str(record.id),
-            properties=_record_properties(
-                record.payload or {}, request.properties
-            ),
+            properties=_record_properties(record.payload or {}, request.properties),
         )
         for record in records
     ]

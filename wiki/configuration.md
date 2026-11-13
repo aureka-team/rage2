@@ -27,7 +27,7 @@ tags:
 | `FAST_EMBED_SPARSE_CACHE` | Sparse embedding model cache directory. | `/resources/cache/fes` |
 | `EMB_MODEL` | Dense embedding model. | `text-embedding-3-large` |
 | `EMB_DIMENSIONS` | Dense embedding dimensions. | `1024` |
-| `COLLECTION_METADATA` | Collection used to store collection metadata. | `collection_metadata` |
+| `COLLECTION_METADATA` | Base name for the resource metadata registry. The shared index appends `_shared_v1`. | `collection_metadata` |
 | `API_PORT` | Published API port. | `8000` |
 
 The settings implementation is in

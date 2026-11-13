@@ -22,7 +22,7 @@ retrieval.
 | --- | --- |
 | Lumos | Initiates transcription indexing, synchronizes annotations and metadata, and sends search queries. |
 | Diagon | Runs the transcription-indexing workflow and coordinates creation of the corresponding RAGE collection. |
-| RAGE | Stores collections, maintains their metadata, and retrieves relevant content. |
+| RAGE | Stores chunks in one Qdrant collection, maintains a resource registry, and retrieves relevant content. |
 
 ## Lumos to RAGE
 
@@ -39,7 +39,10 @@ Lumos -> RAGE POST /rage/collection/create
 ```
 
 `POST /rage/retriever/retrieve` searches the transcription, annotation, and
-metadata collections. When `enable_llm_response` is true, RAGE reranks the
+metadata resources in a single Qdrant query. Lumos sends the IDs it has already
+authorized. RAGE resolves those IDs in one metadata lookup and filters the
+query to the current generation of each resource. The API uses the existing
+`collection_name` and `collection_names` fields for those resource IDs. When `enable_llm_response` is true, RAGE reranks the
 retrieved chunks and uses the relevant chunks to generate `llm_response`.
 The response lists every missing collection in `invalid_collections`, preserving
 each identifier and its request order. `error` is true whenever that list is
@@ -90,6 +93,30 @@ The indexing decision follows the current RAGE collection state:
 
 `POST /rage/collection/list` exists, but currently has no active application call
 site in these flows.
+
+## Rebuild the shared index
+
+Deploy the new RAGE API before rebuilding the index. The new API uses
+`rage_content_v1` for chunks and a separate registry whose name is
+`COLLECTION_METADATA` with the suffix `_shared_v1`. Legacy indexes and
+checksums are outside this lookup path.
+
+Run the following from Lumos against the target environment. Use a fresh
+checkpoint for this rebuild, then reuse it to resume the same run.
+
+```bash
+uv run lumos-admin reindex-rage --all --checkpoint ./rage-shared-reindex.sqlite
+```
+
+Search becomes available for each resource as its indexing completes.
+Verify searches across transcripts, annotations, and metadata, including
+restricted resources, before reclaiming the old Qdrant storage. Remove old
+collections through Qdrant administration after the cutover. Keep
+`rage_content_v1` and the shared registry.
+
+Run the RAGE HTTP API with one worker and one replica. Resource writes and
+deletes use in-process locks. A replacement becomes searchable when the
+registry points to its new generation, after all its chunks have been stored.
 
 ## Implementation
 

@@ -41,16 +41,13 @@ async def get_collection(
     request: GetCollectionInput,
     retriever: Annotated[Retriever, Depends(get_retriever)],
 ) -> GetCollectionOutput:
-    exists = await retriever.qadrant_async_client.collection_exists(
-        request.collection_name
-    )
-    if not exists:
+    metadata = await get_collection_metadata(retriever, request.collection_name)
+    if metadata is None:
         return GetCollectionOutput()
 
     return GetCollectionOutput(
         collection_name=request.collection_name,
-        collection_metadata=await get_collection_metadata(
-            retriever,
-            request.collection_name,
-        ),
+        collection_metadata={
+            key: value for key, value in metadata.items() if key != "generation"
+        },
     )
