@@ -4,6 +4,7 @@ import mimetypes
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Annotated
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
 from joblib import hash
@@ -17,12 +18,17 @@ from pydantic import (
 )
 from pydantic_extra_types.language_code import LanguageAlpha2
 
+from rage.api.app_index import AppIndex, AppIndexDependency
 from rage.api.collection_metadata import (
-    remove_collection_metadata,
+    get_collection_metadata,
     set_collection_metadata,
 )
+from rage.api.shared_index import (
+    delete_resource_chunks,
+    ensure_content_collection,
+    resource_write_lock,
+)
 from rage.api.utils import get_retriever
-from rage.config import config
 from rage.loaders import (
     AurekaTranscriptionLoader,
     MarkdownLoader,
@@ -50,9 +56,7 @@ class CollectionFile(BaseModel):
         description="Name used to identify the source document in the collection."
     )
 
-    file_type: StrictStr = Field(
-        description="MIME type of the encoded file content."
-    )
+    file_type: StrictStr = Field(description="MIME type of the encoded file content.")
 
     base64_file: StrictStr = Field(
         description="Complete file content encoded as a Base64 string."
@@ -75,24 +79,23 @@ class CreateCollectionInput(BaseModel):
         )
     )
     collection_files: list[CollectionFile] = Field(
-        description="Files to load, split, embed, and store in the collection."
+        description="Files to load, split, embed, and store in the collection.",
+        min_length=1,
     )
     language: LanguageAlpha2 = Field(
         description="ISO 639-1 language code for the collection content.",
     )
     overwrite: StrictBool = Field(
         default=False,
-        description="Delete and recreate the collection when it already exists.",
+        description="Replace the indexed resource when it already exists.",
     )
 
     @field_validator("name")
     @classmethod
     def normalize_name(cls, value: str) -> str:
         normalized_name = "_".join(value.lower().split())
-        if normalized_name == config.collection_metadata:
-            raise ValueError(
-                f"{config.collection_metadata} is a reserved collection name"
-            )
+        if not normalized_name:
+            raise ValueError("A nonempty resource name is required")
 
         return normalized_name
 
@@ -107,9 +110,7 @@ class GraphStats(BaseModel):
 
 
 class CreateCollectionOutput(BaseModel):
-    collection_name: StrictStr = Field(
-        description="Normalized name of the collection."
-    )
+    collection_name: StrictStr = Field(description="Normalized name of the collection.")
     collection_language: StrictStr = Field(
         description="ISO 639-1 language code stored for the collection."
     )
@@ -150,10 +151,7 @@ async def _load_file(
     assert file_extension is not None
     file_extension = file_extension.removeprefix(".")
 
-    file_path = (
-        Path(temporary_directory)
-        / f"{collection_file.file_name}.{file_extension}"
-    )
+    file_path = Path(temporary_directory) / f"{uuid4()}.{file_extension}"
 
     file_path.write_bytes(file_bytes)
     documents = await FILE_LOADERS[file_extension]().load(
@@ -166,7 +164,10 @@ async def _load_file(
             Document(
                 text=document.text,
                 metadata=document.metadata
-                | {"document_name": collection_file.file_name},
+                | {
+                    "document_name": collection_file.file_name,
+                    "file_name": collection_file.file_name,
+                },
             )
             for document in documents
         ],
@@ -183,30 +184,28 @@ collection_create_router = APIRouter()
     summary="Create a collection",
     description=(
         "Decodes the supplied files, extracts and splits their text, then creates "
-        "a Qdrant collection containing the resulting embeddings."
+        "an indexed resource in the shared Qdrant collection."
     ),
 )
 async def create_collection(
     request: CreateCollectionInput,
+    index: AppIndexDependency,
     retriever: Annotated[Retriever, Depends(get_retriever)],
 ) -> CreateCollectionOutput:
-    exists = await retriever.qadrant_async_client.collection_exists(
-        request.name
-    )
-    if exists and not request.overwrite:
-        await retriever.ensure_payload_indexes(request.name)
+    async with resource_write_lock(index.content, request.name):
+        return await _index_resource(request, retriever, index)
 
+
+async def _index_resource(
+    request: CreateCollectionInput, retriever: Retriever, index: AppIndex
+) -> CreateCollectionOutput:
+    existing = await get_collection_metadata(retriever, index.registry, request.name)
+    if existing and not request.overwrite:
         return CreateCollectionOutput(
             collection_name=request.name,
-            collection_language=request.language,
-            collection_documents=[
-                item.file_name for item in request.collection_files
-            ],
+            collection_language=existing["language"],
+            collection_documents=existing["documents"],
         )
-
-    if exists:
-        await retriever.qadrant_async_client.delete_collection(request.name)
-        await remove_collection_metadata(retriever, request.name)
 
     with TemporaryDirectory() as temporary_directory:
         loaded_files = [
@@ -217,22 +216,33 @@ async def create_collection(
     document_groups, files_md5 = zip(*loaded_files, strict=True)
     documents = [document for group in document_groups for document in group]
     chunks = MarkdownSplitter().split_documents(documents)
+    generation = uuid4().hex
+    for chunk in chunks:
+        chunk.metadata.update(rage_resource_id=request.name, rage_generation=generation)
+
+    await ensure_content_collection(retriever, index.content)
+    if chunks:
+        await retriever.insert_text_chunks(index.content, chunks)
     collection_documents = [item.file_name for item in request.collection_files]
-    await retriever.create_collection(request.name)
-    await retriever.ensure_payload_indexes(request.name)
-    await retriever.insert_text_chunks(request.name, chunks)
+    # Publish only after all chunks have been written. A failed embedding batch
+    # leaves the previous generation visible. A later retry removes stale chunks.
     await set_collection_metadata(
         retriever=retriever,
+        registry=index.registry,
         collection_name=request.name,
         language=request.language,
         documents=collection_documents,
         files_md5=list(files_md5),
+        generation=generation,
+    )
+    await delete_resource_chunks(
+        retriever, index.content, request.name, keep_generation=generation
     )
     return CreateCollectionOutput(
         collection_name=request.name,
         collection_language=request.language,
         collection_documents=collection_documents,
         created=True,
-        num_documents=len(documents),
-        num_text_chunks=len(chunks),
+        num_documents=len(documents) or None,
+        num_text_chunks=len(chunks) or None,
     )

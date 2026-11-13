@@ -18,6 +18,7 @@ tags:
 | `RAGE_REDIS_DB` | Redis database. | `0` |
 | `RAGE_REDIS_USERNAME` | Redis ACL username. | None |
 | `RAGE_REDIS_PASSWORD` | Redis authentication password. | None |
+| `RAGE_APP_TOKENS` | JSON object mapping app IDs to bearer tokens. A nonempty map requires authentication on all index routes. | `{}` |
 | `RAGE_QDRANT_HOST` | Qdrant host. | `rage-qdrant` |
 | `RAGE_QDRANT_PORT` | Qdrant HTTP port. | `6333` |
 | `RAGE_QDRANT_GRPC_PORT` | Qdrant gRPC port. | `6334` |
@@ -27,8 +28,20 @@ tags:
 | `FAST_EMBED_SPARSE_CACHE` | Sparse embedding model cache directory. | `/resources/cache/fes` |
 | `EMB_MODEL` | Dense embedding model. | `text-embedding-3-large` |
 | `EMB_DIMENSIONS` | Dense embedding dimensions. | `1024` |
-| `COLLECTION_METADATA` | Collection used to store collection metadata. | `collection_metadata` |
+| `COLLECTION_METADATA` | Base name for the resource metadata registry. The shared index appends `_shared_v1`. | `collection_metadata` |
 | `API_PORT` | Published API port. | `8000` |
 
 The settings implementation is in
 [`src/rage/config/config.py`](../src/rage/config/config.py).
+
+## Configure app access
+
+Set `RAGE_APP_TOKENS` through your secret store. Use lowercase app IDs that
+start with a letter and contain up to 48 letters, digits, or hyphens. Assign
+each app a unique, randomly generated token. Clients send their token in the
+`Authorization: Bearer <token>` header.
+
+Use the app ID `aureka` for Lumos and Diagon to keep using the existing
+Aureka index. RAGE gives every other app its own content collection and
+metadata registry. An empty token map enables unauthenticated Aureka access.
+The health check stays available without a token.

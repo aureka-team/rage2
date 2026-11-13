@@ -1,6 +1,7 @@
+from itertools import chain
+
 from langchain_text_splitters import TokenTextSplitter
 from langchain_text_splitters.base import TextSplitter as LangChainTextSplitter
-from more_itertools import flatten
 
 from rage.meta.interfaces import Document, TextChunk, TextSplitter
 
@@ -36,4 +37,4 @@ class TokenSplitter(TextSplitter):
 
     def _split_documents(self, documents: list[Document]) -> list[TextChunk]:
         text_chunks = map(self.get_text_chunks, documents)
-        return list(flatten(text_chunks))
+        return list(chain.from_iterable(text_chunks))

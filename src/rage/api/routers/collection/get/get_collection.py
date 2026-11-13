@@ -3,6 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field, StrictStr
 
+from rage.api.app_index import AppIndexDependency
 from rage.api.collection_metadata import get_collection_metadata
 from rage.api.utils import get_retriever
 from rage.retriever import Retriever
@@ -39,18 +40,18 @@ collection_get_router = APIRouter()
 )
 async def get_collection(
     request: GetCollectionInput,
+    index: AppIndexDependency,
     retriever: Annotated[Retriever, Depends(get_retriever)],
 ) -> GetCollectionOutput:
-    exists = await retriever.qadrant_async_client.collection_exists(
-        request.collection_name
+    metadata = await get_collection_metadata(
+        retriever, index.registry, request.collection_name
     )
-    if not exists:
+    if metadata is None:
         return GetCollectionOutput()
 
     return GetCollectionOutput(
         collection_name=request.collection_name,
-        collection_metadata=await get_collection_metadata(
-            retriever,
-            request.collection_name,
-        ),
+        collection_metadata={
+            key: value for key, value in metadata.items() if key != "generation"
+        },
     )

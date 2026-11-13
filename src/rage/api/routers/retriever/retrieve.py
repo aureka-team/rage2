@@ -14,6 +14,9 @@ from pydantic import (
     StrictStr,
 )
 
+from rage.api.app_index import AppIndexDependency
+from rage.api.collection_metadata import get_resource_metadata
+from rage.api.shared_index import generation_filter
 from rage.api.utils import get_filter, get_retriever
 from rage.llm_agents import TextChunk, reranker_agent, retrieval_assistant_agent
 from rage.retriever import Retriever, RetrieverItem
@@ -115,9 +118,7 @@ def _retriever_item(
     metadata = item.metadata
     score = item.score or 0.0
     return RetrieverOutputItem(
-        document_name=str(
-            metadata.get("document_name", metadata.get("file_name", ""))
-        ),
+        document_name=str(metadata.get("document_name", metadata.get("file_name", ""))),
         text=item.text,
         document_metadata=metadata,
         score=score,
@@ -171,7 +172,7 @@ retrieve_router = APIRouter()
     tags=["retriever"],
     summary="Retrieve text chunks",
     description=(
-        "Searches one or more Qdrant collections, combines their results by score, "
+        "Searches the requested resources in the shared Qdrant collection, "
         "and reports every nonexistent collection in request order. Missing "
         "collections set error=true; existing collections are still searched. "
         "An empty result with error=false means all collections exist."
@@ -179,74 +180,52 @@ retrieve_router = APIRouter()
 )
 async def retrieve(
     retrieve_input: RetrieverInput,
+    index: AppIndexDependency,
     retriever: Annotated[Retriever, Depends(get_retriever)],
 ) -> RetrieverOutput:
-    existence = [
-        await retriever.qadrant_async_client.collection_exists(name)
-        for name in retrieve_input.collection_names
-    ]
-    valid_collections = [
-        name
-        for name, exists in zip(
-            retrieve_input.collection_names, existence, strict=True
-        )
-        if exists
-    ]
+    resources = await get_resource_metadata(
+        retriever, index.registry, retrieve_input.collection_names
+    )
     invalid_collections = [
-        name
-        for name, exists in zip(
-            retrieve_input.collection_names, existence, strict=True
-        )
-        if not exists
+        name for name in retrieve_input.collection_names if name not in resources
     ]
-    if not valid_collections:
+    if not resources:
         return RetrieverOutput(
             error=True,
             invalid_collections=invalid_collections,
         )
 
-    search_filter = get_filter(retrieve_input.filters)
-    result_groups: list[tuple[str, list[RetrieverItem]]] = []
-    for collection_name in valid_collections:
-        match retrieve_input.search_mode:
-            case "dense":
-                results = await retriever.dense_search(
-                    collection_name,
-                    retrieve_input.query_text,
-                    k=retrieve_input.retriever_limit,
-                    score_threshold=retrieve_input.min_similarity,
-                    search_filter=search_filter,
-                )
-
-            case "sparse":
-                results = await retriever.sparse_search(
-                    collection_name,
-                    retrieve_input.query_text,
-                    k=retrieve_input.retriever_limit,
-                    search_filter=search_filter,
-                )
-
-            case "hybrid":
-                results = await retriever.hybrid_search(
-                    collection_name,
-                    retrieve_input.query_text,
-                    k=retrieve_input.retriever_limit,
-                    score_threshold=retrieve_input.min_similarity,
-                    search_filter=search_filter,
-                )
-
-        result_groups.append((collection_name, results))
+    search_filter = generation_filter(
+        [resource["generation"] for resource in resources.values()],
+        get_filter(retrieve_input.filters),
+    )
+    query = retrieve_input.query_text
+    limit = retrieve_input.retriever_limit
+    match retrieve_input.search_mode:
+        case "dense":
+            results = await retriever.dense_search(
+                index.content,
+                query,
+                k=limit,
+                score_threshold=retrieve_input.min_similarity,
+                search_filter=search_filter,
+            )
+        case "sparse":
+            results = await retriever.sparse_search(
+                index.content, query, k=limit, search_filter=search_filter
+            )
+        case "hybrid":
+            results = await retriever.hybrid_search(
+                index.content,
+                query,
+                k=limit,
+                score_threshold=retrieve_input.min_similarity,
+                search_filter=search_filter,
+            )
 
     items = [
-        _retriever_item(item, collection_name)
-        for collection_name, results in result_groups
-        for item in results
+        _retriever_item(item, item.metadata["rage_resource_id"]) for item in results
     ]
-    items = sorted(
-        items,
-        key=lambda item: item.score,
-        reverse=True,
-    )[: retrieve_input.retriever_limit]
     if retrieve_input.search_mode == "sparse" and items:
         model = retriever.sparse_embeddings._model.model
         if isinstance(model, Bm25):
