@@ -12,8 +12,9 @@ from pydantic import (
 )
 from qdrant_client import models
 
+from rage.api.app_index import AppIndexDependency
 from rage.api.collection_metadata import get_collection_metadata
-from rage.api.shared_index import CONTENT_COLLECTION, generation_filter
+from rage.api.shared_index import generation_filter
 from rage.api.utils import get_filter, get_retriever
 from rage.retriever import Retriever
 
@@ -85,9 +86,12 @@ collection_get_objects_router = APIRouter()
 )
 async def get_collection_objects(
     request: GetCollectionObjectsInput,
+    index: AppIndexDependency,
     retriever: Annotated[Retriever, Depends(get_retriever)],
 ) -> list[CollectionObject]:
-    metadata = await get_collection_metadata(retriever, request.collection_name)
+    metadata = await get_collection_metadata(
+        retriever, index.registry, request.collection_name
+    )
     if metadata is None:
         return []
 
@@ -99,7 +103,7 @@ async def get_collection_objects(
         )
 
     records = await retriever.scroll(
-        collection_name=CONTENT_COLLECTION,
+        collection_name=index.content,
         limit=request.limit or 10,
         scroll_filter=generation_filter(
             [metadata["generation"]], get_filter(request.filters)

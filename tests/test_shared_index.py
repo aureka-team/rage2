@@ -4,6 +4,7 @@ from uuid import uuid4
 import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
+from pydantic import SecretStr
 from qdrant_client import AsyncQdrantClient, models
 
 from rage.api.routers.collection.create import create_collection as indexing
@@ -16,8 +17,8 @@ from rage.api.routers.collection.remove.remove_collection import (
     collection_remove_router,
 )
 from rage.api.routers.retriever.retrieve import retrieve_router
-from rage.api.shared_index import CONTENT_COLLECTION
 from rage.api.utils import get_retriever
+from rage.config import config
 from rage.meta.interfaces import Document, TextChunk
 from rage.retriever import Retriever, RetrieverItem
 
@@ -86,6 +87,7 @@ async def test_shared_index_enforces_resource_scope_and_preserves_published_cont
     retriever = LocalRetriever()
     await retriever.create_collection("legacy")
     app = FastAPI()
+
     async def get_local_retriever():
         return retriever
 
@@ -173,7 +175,7 @@ async def test_shared_index_enforces_resource_scope_and_preserves_published_cont
         )
         assert [obj["properties"]["text"] for obj in objects.json()] == ["replacement"]
         assert (
-            await retriever.qadrant_async_client.count(CONTENT_COLLECTION)
+            await retriever.qadrant_async_client.count("rage_content_v1")
         ).count == 2
 
         response = await client.post("/rage/collection/remove", json={"name": "public"})
@@ -181,7 +183,43 @@ async def test_shared_index_enforces_resource_scope_and_preserves_published_cont
         result = await search(["public", "private"])
         assert [item["text"] for item in result["retriever_items"]] == ["private text"]
         assert (
-            await retriever.qadrant_async_client.count(CONTENT_COLLECTION)
+            await retriever.qadrant_async_client.count("rage_content_v1")
         ).count == 1
+
+        # Enable authentication after Aureka already has indexed content.
+        monkeypatch.setattr(
+            config,
+            "rage_app_tokens",
+            {"aureka": SecretStr("aureka-token"), "other": SecretStr("other-token")},
+        )
+        for token in (None, "invalid-token"):
+            headers = {"Authorization": f"Bearer {token}"} if token else {}
+            denied = await client.post("/rage/collection/list", headers=headers)
+            assert denied.status_code == 401
+
+        client.headers["Authorization"] = "Bearer other-token"
+        assert (await client.post("/rage/collection/list")).json() == []
+        assert not (await search(["private"]))["retriever_items"]
+        assert (
+            await client.post(
+                "/rage/collection/remove",
+                json={"name": "private"},
+            )
+        ).json() == {"removed": False}
+        assert (await index("private", "other app's text")).status_code == 200
+        assert [
+            item["text"] for item in (await search(["private"]))["retriever_items"]
+        ] == ["other app's text"]
+        assert (
+            await client.post(
+                "/rage/collection/remove",
+                json={"name": "private"},
+            )
+        ).json() == {"removed": True}
+
+        client.headers["Authorization"] = "Bearer aureka-token"
+        assert [
+            item["text"] for item in (await search(["private"]))["retriever_items"]
+        ] == ["private text"]
 
     await retriever.qadrant_async_client.close()

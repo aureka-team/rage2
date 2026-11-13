@@ -2,6 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
+from rage.api.app_index import AppIndexDependency
 from rage.api.collection_metadata import list_resource_names
 from rage.api.utils import get_retriever
 from rage.retriever import Retriever
@@ -16,6 +17,7 @@ collection_list_router = APIRouter()
     description="Returns the names of the resources in the shared collection.",
 )
 async def list_collections(
+    index: AppIndexDependency,
     retriever: Annotated[Retriever, Depends(get_retriever)],
 ) -> list[str]:
-    return await list_resource_names(retriever)
+    return await list_resource_names(retriever, index.registry)

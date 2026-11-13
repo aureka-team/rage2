@@ -14,8 +14,9 @@ from pydantic import (
     StrictStr,
 )
 
+from rage.api.app_index import AppIndexDependency
 from rage.api.collection_metadata import get_resource_metadata
-from rage.api.shared_index import CONTENT_COLLECTION, generation_filter
+from rage.api.shared_index import generation_filter
 from rage.api.utils import get_filter, get_retriever
 from rage.llm_agents import TextChunk, reranker_agent, retrieval_assistant_agent
 from rage.retriever import Retriever, RetrieverItem
@@ -179,9 +180,12 @@ retrieve_router = APIRouter()
 )
 async def retrieve(
     retrieve_input: RetrieverInput,
+    index: AppIndexDependency,
     retriever: Annotated[Retriever, Depends(get_retriever)],
 ) -> RetrieverOutput:
-    resources = await get_resource_metadata(retriever, retrieve_input.collection_names)
+    resources = await get_resource_metadata(
+        retriever, index.registry, retrieve_input.collection_names
+    )
     invalid_collections = [
         name for name in retrieve_input.collection_names if name not in resources
     ]
@@ -200,7 +204,7 @@ async def retrieve(
     match retrieve_input.search_mode:
         case "dense":
             results = await retriever.dense_search(
-                CONTENT_COLLECTION,
+                index.content,
                 query,
                 k=limit,
                 score_threshold=retrieve_input.min_similarity,
@@ -208,11 +212,11 @@ async def retrieve(
             )
         case "sparse":
             results = await retriever.sparse_search(
-                CONTENT_COLLECTION, query, k=limit, search_filter=search_filter
+                index.content, query, k=limit, search_filter=search_filter
             )
         case "hybrid":
             results = await retriever.hybrid_search(
-                CONTENT_COLLECTION,
+                index.content,
                 query,
                 k=limit,
                 score_threshold=retrieve_input.min_similarity,

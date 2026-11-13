@@ -18,19 +18,17 @@ from pydantic import (
 )
 from pydantic_extra_types.language_code import LanguageAlpha2
 
+from rage.api.app_index import AppIndex, AppIndexDependency
 from rage.api.collection_metadata import (
-    REGISTRY,
     get_collection_metadata,
     set_collection_metadata,
 )
 from rage.api.shared_index import (
-    CONTENT_COLLECTION,
     delete_resource_chunks,
     ensure_content_collection,
     resource_write_lock,
 )
 from rage.api.utils import get_retriever
-from rage.config import config
 from rage.loaders import (
     AurekaTranscriptionLoader,
     MarkdownLoader,
@@ -96,12 +94,8 @@ class CreateCollectionInput(BaseModel):
     @classmethod
     def normalize_name(cls, value: str) -> str:
         normalized_name = "_".join(value.lower().split())
-        if not normalized_name or normalized_name in {
-            config.collection_metadata,
-            REGISTRY,
-            CONTENT_COLLECTION,
-        }:
-            raise ValueError("A nonempty, unreserved resource name is required")
+        if not normalized_name:
+            raise ValueError("A nonempty resource name is required")
 
         return normalized_name
 
@@ -195,16 +189,17 @@ collection_create_router = APIRouter()
 )
 async def create_collection(
     request: CreateCollectionInput,
+    index: AppIndexDependency,
     retriever: Annotated[Retriever, Depends(get_retriever)],
 ) -> CreateCollectionOutput:
-    async with resource_write_lock(request.name):
-        return await _index_resource(request, retriever)
+    async with resource_write_lock(index.content, request.name):
+        return await _index_resource(request, retriever, index)
 
 
 async def _index_resource(
-    request: CreateCollectionInput, retriever: Retriever
+    request: CreateCollectionInput, retriever: Retriever, index: AppIndex
 ) -> CreateCollectionOutput:
-    existing = await get_collection_metadata(retriever, request.name)
+    existing = await get_collection_metadata(retriever, index.registry, request.name)
     if existing and not request.overwrite:
         return CreateCollectionOutput(
             collection_name=request.name,
@@ -225,21 +220,24 @@ async def _index_resource(
     for chunk in chunks:
         chunk.metadata.update(rage_resource_id=request.name, rage_generation=generation)
 
-    await ensure_content_collection(retriever)
+    await ensure_content_collection(retriever, index.content)
     if chunks:
-        await retriever.insert_text_chunks(CONTENT_COLLECTION, chunks)
+        await retriever.insert_text_chunks(index.content, chunks)
     collection_documents = [item.file_name for item in request.collection_files]
     # Publish only after all chunks have been written. A failed embedding batch
     # leaves the previous generation visible. A later retry removes stale chunks.
     await set_collection_metadata(
         retriever=retriever,
+        registry=index.registry,
         collection_name=request.name,
         language=request.language,
         documents=collection_documents,
         files_md5=list(files_md5),
         generation=generation,
     )
-    await delete_resource_chunks(retriever, request.name, keep_generation=generation)
+    await delete_resource_chunks(
+        retriever, index.content, request.name, keep_generation=generation
+    )
     return CreateCollectionOutput(
         collection_name=request.name,
         collection_language=request.language,

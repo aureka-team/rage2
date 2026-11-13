@@ -7,7 +7,6 @@ from qdrant_client import models
 
 from rage.retriever import Retriever
 
-CONTENT_COLLECTION = "rage_content_v1"
 RESOURCE_FIELD = "metadata.rage_resource_id"
 GENERATION_FIELD = "metadata.rage_generation"
 
@@ -17,8 +16,8 @@ _write_locks = tuple(Lock() for _ in range(64))
 _setup_lock = Lock()
 
 
-def resource_write_lock(name: str) -> Lock:
-    return _write_locks[hash(name) % len(_write_locks)]
+def resource_write_lock(collection: str, name: str) -> Lock:
+    return _write_locks[hash((collection, name)) % len(_write_locks)]
 
 
 def generation_filter(
@@ -30,21 +29,21 @@ def generation_filter(
     return models.Filter(must=[scope, filters] if filters else [scope])
 
 
-async def ensure_content_collection(retriever: Retriever) -> None:
+async def ensure_content_collection(retriever: Retriever, collection: str) -> None:
     async with _setup_lock:
-        await retriever.create_collection(CONTENT_COLLECTION)
-        await retriever.ensure_payload_indexes(CONTENT_COLLECTION)
-        await retriever.create_payload_index(CONTENT_COLLECTION, GENERATION_FIELD)
-        await retriever.create_payload_index(CONTENT_COLLECTION, RESOURCE_FIELD)
+        await retriever.create_collection(collection)
+        await retriever.ensure_payload_indexes(collection)
+        await retriever.create_payload_index(collection, GENERATION_FIELD)
+        await retriever.create_payload_index(collection, RESOURCE_FIELD)
 
 
 async def delete_resource_chunks(
-    retriever: Retriever, name: str, keep_generation: str | None = None
+    retriever: Retriever, collection: str, name: str, keep_generation: str | None = None
 ) -> None:
-    if not await retriever.qadrant_async_client.collection_exists(CONTENT_COLLECTION):
+    if not await retriever.qadrant_async_client.collection_exists(collection):
         return
     await retriever.qadrant_async_client.delete(
-        collection_name=CONTENT_COLLECTION,
+        collection_name=collection,
         points_selector=models.FilterSelector(
             filter=models.Filter(
                 must=[

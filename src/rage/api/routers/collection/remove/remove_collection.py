@@ -3,6 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field, StrictBool, StrictStr
 
+from rage.api.app_index import AppIndexDependency
 from rage.api.collection_metadata import (
     get_collection_metadata,
     remove_collection_metadata,
@@ -33,10 +34,14 @@ collection_remove_router = APIRouter()
 )
 async def remove_collection(
     request: RemoveCollectionInput,
+    index: AppIndexDependency,
     retriever: Annotated[Retriever, Depends(get_retriever)],
 ) -> RemoveCollectionOutput:
-    async with resource_write_lock(request.name):
-        exists = await get_collection_metadata(retriever, request.name) is not None
-        await remove_collection_metadata(retriever, request.name)
-        await delete_resource_chunks(retriever, request.name)
+    async with resource_write_lock(index.content, request.name):
+        exists = (
+            await get_collection_metadata(retriever, index.registry, request.name)
+            is not None
+        )
+        await remove_collection_metadata(retriever, index.registry, request.name)
+        await delete_resource_chunks(retriever, index.content, request.name)
     return RemoveCollectionOutput(removed=exists)
